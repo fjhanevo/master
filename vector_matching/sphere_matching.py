@@ -59,9 +59,50 @@ def full_z_rotation(vector, ang_step):
         ret_vec.append(temp_vec)
     return np.array(ret_vec)
 
+def filter_sim(sim, ang_step, reciprocal_radius):
+    """
+    Helper function for vector_match() to filter out zeros
+    from sim because its homo, and now its in-homo
+    """
+    # print(sim.shape)
+    sim_filtered = sim[~np.all(sim == 0, axis=1)]
+    # print(sim_filtered.shape)
+
+    # make it 3D
+    sim_filtered_3d = np.array(vector_to_3D(sim_filtered, reciprocal_radius))
+    # print(sim_filtered_3d.shape)
+
+    # fully rotate sim3d
+    sim_filtered_3d_rot = full_z_rotation(sim_filtered_3d, ang_step)
+    # print(sim_filtered_3d_rot.shape)
+
+    return sim_filtered_3d_rot
+
 def vector_match(experimental, simulated, ang_step, reciprocal_radius, n_best):
     """
     DENNE FUNKER BRA!
+
+    Params:
+        experimental: 
+            type: np.ndarray
+            (N,2) ndarray of polar exerimental dp's
+        simulated: 
+            type: np.ndarray
+            (M,N,2) ndarray of polar simulated dp's
+        ang_step:
+            type: float
+            angular step values from 0 to 2*pi
+        reciprocal_radius:
+            type: float
+            reciprocal radius to take into account
+        n_best:
+            type: int
+            amount of frames to keep score of
+    Returns:
+        n_array:
+        type: np.ndarray
+        Return an nx4 array of shape (len(experimental), n_best, 4)
+        where the nx4 array is [index, score, in-plane rotation, mirror-factor]
 
     """
     result_lst = []
@@ -74,13 +115,14 @@ def vector_match(experimental, simulated, ang_step, reciprocal_radius, n_best):
 
         # Loop through each simulated frame
         for sim_idx, sim_frame in enumerate(simulated):
+            # filter out zeros and make sim 3d and rotated
+            sim_processed = filter_sim(sim_frame, ang_step, reciprocal_radius)
             # just reset and declare these here to stop the lsp from bitching
-            # best_frame = 0
             best_score = float('inf')
             in_plane = 0
 
             # Loop through each rotation of the simulated frame
-            for rot_idx, rot_frame in enumerate(sim_frame):
+            for rot_idx, rot_frame in enumerate(sim_processed):
                 # Build tree for nn-search
                 tree = cKDTree(rot_frame)
                 
