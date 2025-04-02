@@ -67,6 +67,14 @@ def plot_with_markers(results, file,i,j):
     data.add_marker(results.to_markers(annotate=True))
     plt.show()
 
+def plot_misorientation(data):
+    loris = data.to_single_phase_orientations()
+    loris_best = loris[:,0]
+    loris_ang  = loris_best.angle_with_outer(loris_best, degrees=True)
+    plt.figure()
+    plt.hist(loris_ang.flatten(), bins=60)
+    plt.show()
+
 
 def to_orientation_map(data, simulation):
     """
@@ -103,4 +111,26 @@ if __name__ == '__main__':
     exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
     exp_results = to_orientation_map(exp_results,simulation)
 
-    plot_ipf(exp_results,frame,phase,orientation)
+    # plot_ipf(exp_results,frame,phase,orientation)
+    plot_misorientation(sim_results)
+    plot_misorientation(exp_results)
+
+    #### DETTE ER NYTTIG!!
+    # xmap = results.to_crystal_map()
+    # print(type(xmap))
+    # oris = xmap.orientations[56,:]
+    #
+    # oris.to_euler()
+    # print(oris.data.shape)
+    # print(oris.to_euler())
+    ### DETTE ER OGSÅ NYTTIG
+    # print(s.axes_manager)
+    # print(s.data.shape)
+    # s = np.reshape(s.data, (6,10,256,256))
+    # print(s.data.shape)
+    # s = pxm.signals.ElectronDiffraction2D(s)
+    # s.set_diffraction_calibration(0.0107)
+    # print(s.axes_manager)
+    # s.plot(cmap='viridis_r')
+    # plt.show()
+
