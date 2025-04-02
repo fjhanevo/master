@@ -43,26 +43,49 @@ def compute_simulations(simgen,phase,grid,reciprocal_radius=1.35,
         max_excitation_error=max_excitation_error,   # max excitation error, s
     )
 
-def make_ipf(sim, idx, phase, orientation):
+def plot_ipf(data, idx, phase, orientation):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
-    correlations = sim.inav[idx].data[:,1]
-    tm_indices = (sim.inav[idx].data[:,0]).astype('int16')
+    correlations = data.inav[idx].data[:,1]
+    tm_indices = (data.inav[idx].data[:,0]).astype('int16')
     orientations = orientation[tm_indices]
-    loris= sim.to_single_phase_orientations()
+    loris= data.to_single_phase_orientations()
     loris_best = loris[idx,0]
-    ax.scatter(orientations, c=correlations, cmap='viridis')
+    ax.scatter(orientations, c=correlations, cmap='viridis_r')
     ax.scatter(loris_best,c='red',marker='o',s=100)
     plt.show()
 
+def plot_with_markers(results, file,i,j):
+    """
+    Plot markers on dataset
+    """
+    data = hs.load(file)
+    data = data.inav[i:j]
+    results = results.inav[i:j]
+    data.plot(cmap='viridis_r', norm='log', title='', colorbar=False, scalebar_color='black', axes_ticks='off')
+    data.add_marker(results.to_markers(annotate=True))
+    plt.show()
+
+
+def to_orientation_map(data, simulation):
+    """
+    Converts numpy array into OrientaionMap and adds metdata
+    """
+    data = pxm.signals.indexation_results.OrientationMap(data)
+    # Add metadata
+    data.metadata.VectorMetadata.column_names = ['index', 'correlation', 'rotation', 'factor']
+    data.metadata.VectorMetadata.units = ['a.u', 'a.u', 'deg', 'a.u']
+    data.simulation = simulation
+
+    return data
 
 if __name__ == '__main__':
     DIR_NPY = 'npy_files/'
     DIR_HSPY = 'processed_hspy_files/'
-    FILE = 'test_vector_match_ang0005.npy'
     HSPY = 'LF_cal_log_m_center_m_peaks.hspy'
     ORG_HSPY = 'LeftFish_unmasked.hspy'
+    FILE = 'ormap_strict_rad2deg_n_best_all_ang_step0005.npy'
 
     ### SIMULATED ###
     s = hs.load(DIR_HSPY+HSPY)
@@ -70,29 +93,14 @@ if __name__ == '__main__':
     phase = unit_cell()
     grid, orientation = gen_orientation_grid(phase)
     simgen = get_simulation_generator(precession_angle=1., minimum_intensity=1e-4, approximate_precession=True)
-    simulations = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
+    simulation = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
 
-    results = s_pol.get_orientation(simulations,n_best=1,frac_keep=1.)  # Creates an OrientationMap
+    sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
+    frame = 56 
 
     ### EXPERIMENTAL ###
     exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    # print(type(exp_results))
-    exp_results = pxm.signals.indexation_results.OrientationMap(exp_results)
-    # print(type(exp_results))
-    # print(exp_results.metadata)
-    exp_results.metadata.VectorMetadata.column_names = ['index', 'correlation', 'rotation', 'factor']
-    exp_results.metadata.VectorMetadata.units= ['a.u', 'a.u', 'deg', 'a.u']
-    # Manually assign new simulation VERY IMPORTANT OR IT WILL BE ANGRY
-    exp_results.simulation = simulations 
-    make_ipf(exp_results, 56, phase, orientation)
-    # make_ipf(results, 56, phase, orientation)
+    exp_results = to_orientation_map(exp_results,simulation)
 
-    #
-    i,j = 54, 58
-    s_org = hs.load(DIR_HSPY+ORG_HSPY)
-    s_org = s_org.inav[i:j]
-    exp_results = exp_results.inav[i:j]
-    s_org.plot(cmap='viridis_r', norm='log',title='', colorbar=False, scalebar_color='black',axes_ticks='off')
-    s_org.add_marker(exp_results.to_markers(annotate=True))
-    plt.show()
+    plot_ipf(exp_results,frame,phase,orientation)
