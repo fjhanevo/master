@@ -78,7 +78,7 @@ def apply_z_rotation(vector:np.ndarray,theta:float) -> np.ndarray:
 
 #NOTE: Tester denne!
 def full_z_rotation(vector:np.ndarray, ang_step:float) -> np.ndarray:
-    angles = np.arange(0,360,ang_step)
+    angles = np.arange(0,2*np.pi,ang_step).tolist()
     return [apply_z_rotation(vector, theta) for theta in angles]
 
 def filter_sim(sim:np.ndarray, ang_step:float, reciprocal_radius:float) -> np.ndarray:
@@ -188,32 +188,39 @@ def vector_match_one_frame(experimental, simulated, ang_step, reciprocal_radius,
     # Loop through all experimental vectors
     # Transpose to 3D
     exp3d = np.array(vector_to_3D(experimental,reciprocal_radius))
-    print(exp3d.shape)
+    # Mirror exp3d over YZ-plane
+    exp3d_mirror = exp3d * np.array([-1,1,1])
     results = []
 
     # Loop through each simulated frame
     for sim_idx, trees in enumerate(precomputed_trees):
         # just reset and declare these here to stop the lsp from bitching
-        best_score, best_rotation = float('inf'), 0
+        best_score, best_rotation, mirror = float('inf'), 0, 1.0
 
         # Loop through each rotation of the simulated frame
         for rot_idx, tree in enumerate(trees):
             distances, _ = tree.query(exp3d)
-
-            
             # low score is good
             score = np.sum(distances)
+
+            # mirror score
+            distances_mirror, _ = tree.query(exp3d_mirror)
+            score_mirror = np.sum(distances_mirror)
 
             # Check score and keep only best score for each sim_frame
             if score < best_score:
                 best_score = score
-                best_rotation = rot_idx * ang_step
-                # Convert from rads to degs
+                best_rotation = np.rad2deg(rot_idx * ang_step)
+                mirror = 1.
                 # in_plane = np.rad2deg(rot_idx * ang_step)
+            if score_mirror < best_score:
+                best_score = score_mirror
+                best_rotation = np.rad2deg(rot_idx * ang_step)
+                mirror = -1.
 
         # Store results for each sim_frame
         # nx4-shape [frame, score, rotation, mirror-factor]
-        results.append((sim_idx, best_score, best_rotation, 1.))
+        results.append((sim_idx, best_score, best_rotation, mirror))
     
     # Sort by ascending score and select n_best
     results = sorted(results, key = lambda x : x[1])[:n_best]
