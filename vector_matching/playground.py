@@ -54,15 +54,23 @@ def match_one_frame(exp, sim, ang_step, reciprocal_radius, n_best):
     print('Best score:',score) 
     print('Best rotation:', rotation)
     print('Mirror factor', mirror)
-    return frame, score, rotation
+    return int(frame), score, rotation, mirror
 
 
 def create_and_save_dataset(experimental, simulated, ang_step, reciprocal_radius, n_best, filename:str):
     n_array = sm.vector_match(experimental, simulated, ang_step, reciprocal_radius, n_best)
     np.save(file=filename, arr=n_array, allow_pickle=True)
 
-def exp_and_sim_sphere_plot(exp, sim, rot, reciprocal_radius,lbls:tuple):
+def save_one_frame(experimental, simulated, ang_step, reciprocal_radius, n_best, filename:str):
+    n_array = sm.vector_match_one_frame(experimental, simulated, ang_step, reciprocal_radius, n_best)
+    np.save(file=filename, arr=n_array, allow_pickle=True)
+
+def exp_and_sim_sphere_plot(exp, sim, rot, reciprocal_radius,mirror,lbls:tuple):
     exp3d = sm.vector_to_3D(exp,reciprocal_radius)
+    # Back to radians for consistency
+    rot = np.deg2rad(rot)
+    if mirror < 0.0:
+        exp3d *= np.array([-1,1,1])
     sim_filtered = sim[~np.all(sim==0,axis=1)]
     sim_filtered3d = sm.vector_to_3D(sim_filtered, reciprocal_radius)
     sim_filtered3d_rot = np.array([sm.apply_z_rotation(vec,rot) for vec in sim_filtered3d])
@@ -74,10 +82,6 @@ if __name__ == '__main__':
     FILE_EXP = 'LF_peaks_m_center_m_peaks.npy'
     FILE_STRICT = 'peaks_all_LoG.npy'
     FILE_SIM = 'LF_r_theta_sim.npy'
-    # FILE_SIM = 'filtered_simulation.npy'
-    # FILE_SIM_ROT = 'sim_ang0005.npy'
-    # FILE_SIM_ROT = 'sim_rot_ang001.npy'
-    # FILE_SIM_ROT2 = 'sim_ang0005.npy'
     IN_PLANE_FILE = 'test_vector_match_ang0005.npy'
 
     experimental = np.load(DIR_NPY+FILE_STRICT,allow_pickle=True)
@@ -89,22 +93,12 @@ if __name__ == '__main__':
     ang_step = 1    # Degrees
     exp_frame =56 
 
-
-    # filename = 'test_faster_method_with_0_5degs.npy'
-    # create_and_save_dataset(experimental, simulated, ang_step, reciprocal_radius, len(simulated), DIR_NPY+filename)
-    # t1 = time()
-    # n_best = len()
-    # ang_step = 0.5    # Now in degrees!!
-    # filename = DIR_NPY + 'ormap_strict_ang0.5deg.npy'
-    # create_and_save_dataset(experimental, simulated,ang_step, reciprocal_radius,n_best, filename)
-    # t2 = time()
-    # print(f"Computation time: {(t2-t1)/60} min")
-
-    sim_frame, _, rotation = match_one_frame(experimental[exp_frame], simulated,np.deg2rad(ang_step), reciprocal_radius, len(simulated))
+    filename = 'f56_ang1deg_n_best_all.npy'
+    # save_one_frame(experimental[exp_frame],simulated,ang_step,reciprocal_radius,len(simulated),DIR_NPY+filename)
+    sim_frame, _, rotation, mirror = match_one_frame(experimental[exp_frame], simulated,ang_step, reciprocal_radius, len(simulated))
     sim_str = 'sim['+str(sim_frame)+']'
     exp_str = 'exp['+str(exp_frame)+']'
-    ##### KEEP FOR LATER
-    lbls = ('sim_str', 'exp_str')
-    exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],np.deg2rad(rotation),reciprocal_radius,lbls)
+    lbls = (sim_str, exp_str)
+    exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],rotation,reciprocal_radius,mirror,lbls,)
 
 
