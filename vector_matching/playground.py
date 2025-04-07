@@ -11,11 +11,15 @@ import matplotlib.pyplot as plt
 Fil for å teste ut ting:)
 """
 
-def make_rotating_sphere_gif(vec1:np.ndarray,vec2:np.ndarray,labels:tuple) -> None:
+def make_rotating_sphere_gif(vec1:np.ndarray,vec2:np.ndarray, reciprocal_radius:float,labels:tuple) -> None:
     """
-    Takes in two 3D vectors and rotates one vector
+    Takes in two 2D vectors and rotates one vector
     around the z-axis 
     """ 
+    vec13d = sm.vector_to_3D(vec1,reciprocal_radius)
+    # Remove 0's
+    vec2= vec2[~np.all(vec2==0,axis=1)]
+    vec23d= sm.vector_to_3D(vec2, reciprocal_radius)
 
     l1, l2 = labels
     t1 = time()
@@ -23,10 +27,10 @@ def make_rotating_sphere_gif(vec1:np.ndarray,vec2:np.ndarray,labels:tuple) -> No
     for ang_step in loop_list:
         # Rotate sphere 2
         filename = 'ang_' + str(ang_step) + '.png'
-        labels = (l1, l2, filename)
+        labels = (l2, l1, filename)
         ##### Use this to plot two spheres #######
-        sphere_z = np.array([sm.apply_z_rotation(v2,ang_step) for v2 in vec2])
-        plotting.plot_spheres_to_gif(vec1,sphere_z,labels)
+        sphere_z = np.array([sm.apply_z_rotation(v2,ang_step) for v2 in vec23d])
+        plotting.plot_spheres_to_gif(vec13d,sphere_z,labels)
 
         ##### This is for fun hihihihihi ######
 
@@ -53,7 +57,7 @@ def match_one_frame(exp, sim, ang_step, reciprocal_radius, n_best):
     print('Best frame:', frame)
     print('Best score:',score) 
     print('Best rotation:', rotation)
-    print('Mirror factor', mirror)
+    print('Mirror factor:', mirror)
     return int(frame), score, rotation, mirror
 
 
@@ -99,6 +103,7 @@ if __name__ == '__main__':
     sim_str = 'sim['+str(sim_frame)+']'
     exp_str = 'exp['+str(exp_frame)+']'
     lbls = (sim_str, exp_str)
-    exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],rotation,reciprocal_radius,mirror,lbls,)
+    # exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],rotation,reciprocal_radius,mirror,lbls,)
+    make_rotating_sphere_gif(experimental[exp_frame],simulated[int(sim_frame)],ang_step,reciprocal_radius, lbls)
 
 
