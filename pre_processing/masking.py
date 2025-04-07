@@ -53,23 +53,6 @@ def log_shift(raw, base=10, shift=0.1):
     log_shift = np.log10(raw+shift) - np.log10(shift)
     return log_shift
 
-def mask_peaks(s,min_dist=20,threshold=0.2,intensity=False,filename=None) -> None:
-    """
-    Mask the diffraction peaks after center beam is masked
-    """
-    st = s.template_match_disk(disk_r=2.2, subtract_min=False)
-    vectors = st.get_diffraction_vectors(min_distance=min_dist, threshold_abs=threshold,get_intensity=intensity)
-    vector_mask = vectors.to_mask(disk_r = 4)
-    m = vectors.to_markers(sizes=5,color='red')
-
-    s.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
-             scalebar=True,scalebar_color='black', axes_ticks='off')
-    s.add_marker(m)
-    plt.show()
-    s_masked = s*vector_mask
-    if filename is not None:
-        s_masked.save(filename)
-
 def peak_find_one_frame(dp,frame, **kwargs):
     st = dp.template_match_disk(disk_r=2.2, subtract_min=False)
     dp_i = dp.inav[frame:frame+1]
@@ -98,6 +81,12 @@ def get_peaks(dp, **kwargs):
     vectors = st.get_diffraction_vectors(**kwargs)
     return vectors.data
 
+def mask_background(data, filename:str, **kwargs) -> None:
+    st = data.template_match_disk(disk_r = 2.2, subtract_min=False)
+    vectors = st.get_diffraction_vectors(**kwargs)
+    vector_mask = vectors.to_mask(disk_r = 4)
+    data_masked = data*vector_mask
+    data_masked.save(filename)
 
 if __name__ == '__main__':
     DIR_HSPY = 'processed_hspy_files/'
@@ -123,26 +112,28 @@ if __name__ == '__main__':
         'log_scale': True,
         'exclude_border': True
     }
+    filename = 'LF_cal_log_m_center_strict_peaks.hspy'
+    mask_background(dp, DIR_HSPY+filename, **params_f29)
     # file29 = 'f29_peaks.npy'
     # f29_data = peak_find_one_frame(dp,29,**params_f29)
     # np.save(file=DIR_NPY+file29, arr=f29_data, allow_pickle=True)
     # print("File saved:",DIR_NPY+file29)
-    data = get_peaks(dp, **params_f29)
-    np.save(file=DIR_NPY+VECTOR_FILE, arr=data, allow_pickle=True)
-    print("File saved:",DIR_NPY+VECTOR_FILE)
+    # data = get_peaks(dp, **params_f29)
+    # np.save(file=DIR_NPY+VECTOR_FILE, arr=data, allow_pickle=True)
+    # print("File saved:",DIR_NPY+VECTOR_FILE)
    
 
-    # params_f56= {
-    #     'method': 'laplacian_of_gaussian',
-    #     'get_intensity': False,
-    #     'min_sigma': 4.,
-    #     'max_sigma': 5,
-    #     'num_sigma': 1,
-    #     'overlap': 0.1,
-    #     'log_scale': True,
-    #     'exclude_border': True
-    # }
+    params_f56= {
+        'method': 'laplacian_of_gaussian',
+        'get_intensity': False,
+        'min_sigma': 4.,
+        'max_sigma': 5,
+        'num_sigma': 1,
+        'overlap': 0.1,
+        'log_scale': True,
+        'exclude_border': True
+    }
     # file56 = 'f56_peaks.npy'
-    # f56_data = peak_find_one_frame(dp,56,**params_f56)
+    f56_data = peak_find_one_frame(dp,56,**params_f56)
     # np.save(file=DIR_NPY+file56, arr=f56_data, allow_pickle=True)
     # print("File saved:",DIR_NPY+file56)
