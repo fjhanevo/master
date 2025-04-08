@@ -206,6 +206,7 @@ def vm_one_frame_take_two(
     # Skip for loop for this as we only need one frame
     exp3d = vector_to_3D(experimental, reciprocal_radius)
     exp3d_mirror = exp3d * np.array([-1,1,1])
+    print(exp3d.shape)
 
     cand_scores = []
     for sim_idx, trees in enumerate(precomputed_trees):
