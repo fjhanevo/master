@@ -96,3 +96,35 @@ def plot_score_per_frame(data:list, labels:tuple):
     plt.tight_layout()
     plt.show()
 
+def plot_2D_plane(s1:np.ndarray, s2:np.ndarray, labels:tuple) -> None:
+    l1, l2 = labels
+    ax = plt.axes(projection='3d')
+    ax.view_init(elev=-90,azim=90,roll=0)
+    ax.scatter3D(s1[...,0], s1[...,1], label=l1)
+    ax.scatter3D(s2[...,0], s2[...,1], label=l2)
+    ax.grid(visible=False)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+
+    plt.legend()
+    plt.show()
+
+def plot_2D_plane_save(s1:np.ndarray, s2:np.ndarray, labels:tuple) -> None:
+    l1, l2, filename = labels
+    ax = plt.axes(projection='3d')
+    ax.view_init(elev=-90,azim=90,roll=0)
+    ax.scatter3D(s1[...,0], s1[...,1], label=l1)
+    ax.scatter3D(s2[...,0], s2[...,1], label=l2)
+    ax.grid(visible=False)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_xlim([-3.5,3.5])
+    ax.set_ylim([-3.5,3.5])
+    # ax.set_zlim([0.4,1])
+
+    plt.legend()
+    plt.savefig('vector_matching/sphere_gif/'+filename)
+
+
