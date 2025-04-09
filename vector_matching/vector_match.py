@@ -1,8 +1,8 @@
 import pyxem as pxm
 import numpy as np
 from scipy.spatial import cKDTree
-import sphere_matching as sm
 from time import time
+from plotting import plot_2D_plane, plot_2D_plane_save
 
 """
 File for vector matching...
@@ -28,8 +28,6 @@ def full_rotation(vec:np.ndarray, step_size:float) -> np.ndarray:
 def filter_sim(vec:np.ndarray, step_size:float) -> np.ndarray:
     vec_filtered = vec[~np.all(vec == 0, axis=1)]
     return full_rotation(vec_filtered,step_size)
-
-
 
 def vm_one_frame(exp, sim, step_size):
     result_lst = []
@@ -79,10 +77,27 @@ def match_one_frame(exp, sim, step_size):
     t2 = time()
     print(f"Computation time: {(t2-t1)/60} min")
     n = n_array[0][0]
-    print('Best frame:', n[0])
-    print('Best score:', n[1])
-    print('Best rotation:', n[2])
-    print('Mirror:', n[3])
+    frame, score, rotation, mirror  = n[0], n[1], n[2], n[3]
+    print('Best frame:', frame)
+    print('Best score:', score)
+    print('Best rotation:', rotation)
+    print('Mirror:', mirror)
+    return frame, rotation, mirror
+
+def plot_rotation_gif(vec1, vec2, step_size,mirror,labels):
+    l1, l2 = labels
+    vec1 = vec1 * np.array([mirror,1])
+    step_size = np.deg2rad(step_size)
+    loop_lst = np.arange(0,2*np.pi,step_size).tolist()
+    vec2= vec2[~np.all(vec2==0,axis=1)]
+    for ang_step in loop_lst:
+        rot = rotation_matrix(vec2,ang_step)
+        filename = 'ang_'+str(ang_step)+'.png'
+        lbls = (l1,l2,filename)
+        plot_2D_plane_save(vec1,rot,lbls)
+
+
+
 
 if __name__ == '__main__':
     DIR_NPY = 'npy_files/'
@@ -94,13 +109,16 @@ if __name__ == '__main__':
     # exp to 2d polar, sim already polar
     exp_data = cart2pol(exp_data)
 
-    frame =29 
+    exp_frame = 29 
     reciprocal_radius = 1.35
-    step_size = 1 # degree
+    step_size = 5 # degree
 
-    # exp3d = sm.vector_to_3D(exp_data[frame], reciprocal_radius)
-    # match_one_frame(exp_data[frame], sim_data, step_size)
-    print(np.array(filter_sim(sim_data[437], step_size)).shape)
+    lbls = ('exp','sim')
+    # plot_2D_plane(exp_data[exp_frame], sim_data[4106],lbls)
 
-
-
+    sim_frame, rotation, mirror =  match_one_frame(exp_data[exp_frame], sim_data, step_size)
+    sim_rot = rotation_matrix(sim_data[int(sim_frame)],rotation)
+    exp_lbl = 'exp['+str(int(exp_frame))+']'
+    sim_lbl = 'sim['+str(int(sim_frame))+']'
+    lbls = (exp_lbl, sim_lbl)
+    plot_rotation_gif(exp_data[exp_frame], sim_data[int(sim_frame)],step_size,mirror,lbls)
