@@ -45,19 +45,28 @@ def vector_match_score_test(
             dist_exp_to_sim, _ = sim_tree.query(exp3d,distance_upper_bound=distance_bound)
             dist_sim_to_exp, _ =exp_tree.query(sim_points,distance_upper_bound=distance_bound)
 
-            n_unmatched_exp = np.sum(np.isinf(dist_exp_to_sim))
-            n_unmatched_sim = np.sum(np.isinf(dist_sim_to_exp))
-            matched_score = np.sum(dist_exp_to_sim[np.isfinite(dist_exp_to_sim)])
-            score = matched_score + unmatched_penalty * (n_unmatched_exp + n_unmatched_sim)
+            #NOTE: New score criteria, based on # points matched to penalize
+            n_exp = len(exp3d)
+            n_sim = len(sim_points)
+            n_matched_exp = np.sum(np.isfinite(dist_exp_to_sim))
+            n_matched_sim = np.sum(np.isfinite(dist_sim_to_exp))
+            
+            ratio_unmatched_exp = (n_exp - n_matched_exp) / n_exp
+            ratio_unmatched_sim = (n_sim - n_matched_sim ) / n_sim
+            penalty = ratio_unmatched_exp + ratio_unmatched_sim
+            score = np.sum(dist_exp_to_sim[np.isfinite(dist_exp_to_sim)]) + distance_bound * penalty
 
             # Mirrored version
             dist_exp_to_sim_m, _ = sim_tree.query(exp3d_mirror,distance_upper_bound=distance_bound)
             dist_sim_to_exp_m, _ = exp_tree_mirror.query(sim_points,distance_upper_bound=distance_bound)
 
-            n_unmatched_exp_m = np.sum(np.isinf(dist_exp_to_sim_m))
-            n_unmatched_sim_m = np.sum(np.isinf(dist_sim_to_exp_m))
-            matched_score_m = np.sum(dist_exp_to_sim_m[np.isfinite(dist_exp_to_sim_m)])
-            score_mirror = matched_score_m + unmatched_penalty * (n_unmatched_exp_m + n_unmatched_sim_m)
+            n_matched_exp_m = np.sum(np.isfinite(dist_exp_to_sim_m))
+            n_matched_sim_m = np.sum(np.isfinite(dist_sim_to_exp_m))
+
+            ratio_unmatched_exp_m = (n_exp - n_matched_exp_m) / n_exp
+            ratio_unmatched_sim_m = (n_sim - n_matched_sim_m ) / n_sim
+            penalty_m = ratio_unmatched_exp_m + ratio_unmatched_sim_m
+            score_mirror = np.sum(dist_exp_to_sim_m[np.isfinite(dist_exp_to_sim_m)]) + distance_bound * penalty_m
 
 
             if score < best_score:
