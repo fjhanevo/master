@@ -3,7 +3,6 @@ import plotting
 import sphere_matching as sm
 from time import time
 from tests import vector_match_score_test
-from tqdm import tqdm
 
 
 
@@ -87,7 +86,7 @@ if __name__ == '__main__':
     FILE_EXP = 'LF_peaks_m_center_m_peaks.npy'
     FILE_STRICT = 'peaks_all_LoG.npy'
     FILE_SIM = 'LF_r_theta_sim.npy'
-    FILE_ORMAP = 'ormap_step1deg_dist005_penalty075.npy'
+    FILE_ORMAP = 'ormap_step05deg_dist005_penalty075.npy'
 
     experimental = np.load(DIR_NPY+FILE_STRICT,allow_pickle=True)
     # Quick polar transform
@@ -95,8 +94,8 @@ if __name__ == '__main__':
     simulated = np.load(DIR_NPY+FILE_SIM,allow_pickle=True)
     
     reciprocal_radius = 1.35 # [Å^-1]
-    step_size = 1    # Degrees
-    exp_frame = 29 
+    step_size = 0.5    # Degrees
+    exp_frame = 29
     n_best = len(simulated) 
 
     create_and_save_dataset(
@@ -108,7 +107,9 @@ if __name__ == '__main__':
         DIR_NPY+FILE_ORMAP
     )
 
-    #### KEEP FOR LATER
+   
+
+    #### KEEP FOR LATER ####
     # filename = 'f56_ang1deg_n_best_all.npy'
     # # save_one_frame(experimental[exp_frame],simulated,ang_step,reciprocal_radius,len(simulated),DIR_NPY+filename)
     # sim_frame, _, rotation, mirror = match_one_frame(experimental[exp_frame], simulated,ang_step, reciprocal_radius, n_best)
