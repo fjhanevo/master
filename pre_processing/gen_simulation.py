@@ -3,6 +3,7 @@ import orix
 from diffpy.structure import Atom, Lattice, Structure
 from diffsims.generators.simulation_generator import SimulationGenerator
 import numpy as np
+import matplotlib.pyplot as plt
 
 def unit_cell(a=4.0495):
     atoms = [Atom('Al', [0,0,0]), Atom('Al', [0.5,0.5,0]),
@@ -41,8 +42,7 @@ def compute_simulations(simgen,phase,grid,reciprocal_radius=1.35,
         max_excitation_error=max_excitation_error,   # max excitation error, s
     )
 
-
-def get_polar_homies(sim,filename:str) -> None:
+def get_polar_coords(sim,filename:str) -> None:
     # Get simulations and skip intensities
     r,theta,_ = sim.polar_flatten_simulations()
     # Combine to a (M,Q,2) ndarray
@@ -68,6 +68,6 @@ if __name__ == '__main__':
     simulations = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
     
-    get_polar_homies(simulations, DIR_NPY+SIM_FILE)
+    get_polar_coords(simulations, DIR_NPY+SIM_FILE)
 
 
