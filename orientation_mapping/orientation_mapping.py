@@ -145,13 +145,17 @@ if __name__ == '__main__':
 
     ### SIMULATED ###
     s = hs.load(DIR_HSPY+HSPY)
+    print(s.axes_manager)
     ### UNCOMMENTED FOR crystal_map ### 
     # ------------------------------------------ #
     s = np.reshape(s.data,(6,10,256,256))
     s = pxm.signals.ElectronDiffraction2D(s)
     s.set_diffraction_calibration(0.0107)
+    print(s.axes_manager.navigation_axes[0].units)
+    print(s.axes_manager)
+    s.axes_manager.navigation_axes[0].units = r"$Å^{-1}$"
+    print(s.axes_manager.navigation_axes[0].units)
     # ------------------------------------------ #
-
     s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
     phase = unit_cell()
     grid, orientation = gen_orientation_grid(phase)
@@ -163,40 +167,20 @@ if __name__ == '__main__':
     plot_crystal_map(sim_results,phase)
     frame = 56
     i, j = frame, frame+1
-    # print(sim_results.data[56][0][0])
-    # print(sim_results.data[29][0][0])
     
     ### EXPERIMENTAL ###
-    exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    exp_results = to_orientation_map(exp_results,simulation)
+    # exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
+    # exp_results = to_orientation_map(exp_results,simulation)
     # print(sim_results.data[56][0])
+
+    ### PLOTS ### 
     # plot_misorientation_scatter(exp_results)
     # plot_misorientation_scatter(sim_results)
-
-
-    plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    # plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
     # plot_ipf(sim_results,frame,phase,orientation, 'viridis')
     # plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
     # plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
     # plot_misorientation(exp_results)
     # plot_misorientation(sim_results)
 
-    #### DETTE ER NYTTIG!!
-    # xmap = sim_results.to_crystal_map()
-    # print(type(xmap))
-    # oris = xmap.orientations[56,:]
-    #
-    # oris.to_euler()
-    # print(oris.data.shape)
-    # print(oris.to_euler())
-    ### DETTE ER OGSÅ NYTTIG
-    # print(s.axes_manager)
-    # print(s.data.shape)
-    # s = np.reshape(s.data, (6,10,256,256))
-    # print(s.data.shape)
-    # s = pxm.signals.ElectronDiffraction2D(s)
-    # s.set_diffraction_calibration(0.0107)
-    # print(s.axes_manager)
-    # s.plot(cmap='viridis_r')
-    # plt.show()
-
+    
