@@ -107,18 +107,19 @@ def plot_crystal_map(results,phase):
     xmap = results.to_crystal_map()
     oris = xmap.orientations
     corrs = results.data[:,:,0,1].flatten()
+    print(corrs.shape)
 
     key_x = IPFColorKeyTSL(phase.point_group, Vector3d.xvector())
     key_y = IPFColorKeyTSL(phase.point_group, Vector3d.yvector())
     key_z = IPFColorKeyTSL(phase.point_group, Vector3d.zvector())
 
-    oris_z = key_z.orientation2color(oris)[:,0,:]
+    oris_z = key_z.orientation2color(oris)[:,:]
     xmap.plot(oris_z, overlay=corrs, remove_padding=True)
     plt.show()
-    oris_x = key_x.orientation2color(oris)[:,0,:]
+    oris_x = key_x.orientation2color(oris)[:,:]
     xmap.plot(oris_x, overlay=corrs, remove_padding=True)
     plt.show()
-    oris_y = key_y.orientation2color(oris)[:,0,:]
+    oris_y = key_y.orientation2color(oris)[:,:]
     xmap.plot(oris_y, overlay=corrs, remove_padding=True)
     plt.show()
 
@@ -140,14 +141,15 @@ if __name__ == '__main__':
     DIR_HSPY = 'processed_hspy_files/'
     HSPY = 'LF_cal_log_m_center_strict_peaks.hspy'
     ORG_HSPY = 'LeftFish_unmasked.hspy'
-    FILE = 'ormap_strict_ang1deg_n_best4186.npy'
+    FILE = 'ormap_step05deg_dist005_penalty075.npy'
 
     ### SIMULATED ###
     s = hs.load(DIR_HSPY+HSPY)
     ### UNCOMMENTED FOR crystal_map ### 
-    # s = np.reshape(s.data,(6,10,256,256))
-    # s = pxm.signals.ElectronDiffraction2D(s)
-    # s.set_diffraction_calibration(0.0107)
+    # ------------------------------------------ #
+    s = np.reshape(s.data,(6,10,256,256))
+    s = pxm.signals.ElectronDiffraction2D(s)
+    s.set_diffraction_calibration(0.0107)
     # ------------------------------------------ #
 
     s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
@@ -157,22 +159,22 @@ if __name__ == '__main__':
     simulation = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
 
-    sim_results = s_pol.get_orientation(simulation,n_best=1,frac_keep=1.)  # Creates an OrientationMap
+    sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
+    plot_crystal_map(sim_results,phase)
     frame = 56
-    i, j = 29, 30
+    i, j = frame, frame+1
     # print(sim_results.data[56][0][0])
     # print(sim_results.data[29][0][0])
-
-
+    
     ### EXPERIMENTAL ###
-    # exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    # exp_results = to_orientation_map(exp_results,simulation)
+    exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
+    exp_results = to_orientation_map(exp_results,simulation)
     # print(sim_results.data[56][0])
     # plot_misorientation_scatter(exp_results)
     # plot_misorientation_scatter(sim_results)
 
 
-    # plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
     # plot_ipf(sim_results,frame,phase,orientation, 'viridis')
     # plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
     # plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
