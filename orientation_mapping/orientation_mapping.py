@@ -143,7 +143,6 @@ if __name__ == '__main__':
     ORG_HSPY = 'LeftFish_unmasked.hspy'
     FILE = 'ormap_step05deg_dist005_penalty075.npy'
 
-    ### SIMULATED ###
     s = hs.load(DIR_HSPY+HSPY)
     print(s.axes_manager)
     ### UNCOMMENTED FOR crystal_map ### 
@@ -156,6 +155,7 @@ if __name__ == '__main__':
     s.axes_manager.navigation_axes[0].units = r"$Å^{-1}$"
     print(s.axes_manager.navigation_axes[0].units)
     # ------------------------------------------ #
+    ### SIMULATED ###
     s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
     phase = unit_cell()
     grid, orientation = gen_orientation_grid(phase)

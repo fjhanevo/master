@@ -94,28 +94,29 @@ if __name__ == '__main__':
     simulated = np.load(DIR_NPY+FILE_SIM,allow_pickle=True)
     
     reciprocal_radius = 1.35 # [Å^-1]
-    step_size = 0.5    # Degrees
-    exp_frame = 29
+    step_size = 1.0    # Degrees
+    exp_frame = 56 
     n_best = len(simulated) 
-
-    create_and_save_dataset(
-        experimental,
-        simulated,
-        step_size,
-        reciprocal_radius,
-        n_best,
-        DIR_NPY+FILE_ORMAP
-    )
+    # n_best = 1
 
    
 
     #### KEEP FOR LATER ####
     # filename = 'f56_ang1deg_n_best_all.npy'
-    # # save_one_frame(experimental[exp_frame],simulated,ang_step,reciprocal_radius,len(simulated),DIR_NPY+filename)
-    # sim_frame, _, rotation, mirror = match_one_frame(experimental[exp_frame], simulated,ang_step, reciprocal_radius, n_best)
-    # sim_str = 'sim['+str(sim_frame)+']'
-    # exp_str = 'exp['+str(exp_frame)+']'
-    # lbls = (sim_str, exp_str)
-    # exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],rotation,reciprocal_radius,mirror,lbls,)
+    # # save_one_frame(experimental[exp_frame],simulated,step_size,reciprocal_radius,len(simulated),DIR_NPY+filename)
+    sim_frame, _, rotation, mirror = match_one_frame(experimental[exp_frame], simulated,step_size, reciprocal_radius, n_best)
+    sim_str = 'sim['+str(sim_frame)+']'
+    exp_str = 'exp['+str(exp_frame)+']'
+    lbls = (sim_str, exp_str)
+    exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],rotation,reciprocal_radius,mirror,lbls,)
+
+    # create_and_save_dataset(
+    #     experimental,
+    #     simulated,
+    #     step_size,
+    #     reciprocal_radius,
+    #     n_best,
+    #     DIR_NPY+FILE_ORMAP
+    # )
 
 
