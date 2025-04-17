@@ -68,6 +68,8 @@ if __name__ == '__main__':
     simulations = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
     
-    get_polar_coords(simulations, DIR_NPY+SIM_FILE)
-
-
+    # get_polar_coords(simulations, DIR_NPY+SIM_FILE)
+    r,theta,i =simulations.polar_flatten_simulations() 
+    dataset = np.stack([r,theta,i],axis=-1)
+    print(dataset.shape)
+    np.save(file=DIR_NPY+'sim_r_theta_intensity.npy', arr=dataset, allow_pickle=True)
