@@ -29,8 +29,12 @@ def vector_to_3D(vector:np.ndarray,reciprocal_radius:float) -> np.ndarray:
     y = np.sin(l)*np.sin(theta)
     z = np.cos(l)
 
-    # create new dataset
-    vector3d = np.stack([x,y,z],axis=-1)
+    # create new dataset, check for intensity
+    if vector.shape[1] == 3:
+        intensity = vector[...,2]
+        vector3d = np.stack([x,y,z,intensity],axis=-1)
+    else:
+        vector3d = np.stack([x,y,z],axis=-1)
 
     return vector3d
 
@@ -45,9 +49,19 @@ def apply_z_rotation(vector:np.ndarray,theta:float) -> np.ndarray:
                     [0,0,1]])
     return vector @ rot.T
 
+def z_rotation_intensity(vector:np.ndarray, theta:float) -> np.ndarray:
+    # pop out intensities
+    temp_vector = np.stack([vector[...,0], vector[...,1], vector[...,2]], axis=-1)
+    rot_vector = np.array(apply_z_rotation(temp_vector, theta))
+    # pop intensities back in
+    return np.stack([rot_vector[...,0], rot_vector[...,1], rot_vector[...,2], vector[...,3]], axis=-1)
+
 def full_z_rotation(vector:np.ndarray, step_size:float) -> np.ndarray:
     angles = np.arange(0,2*np.pi,step_size).tolist()
-    return [apply_z_rotation(vector, theta) for theta in angles]
+    if vector.shape[1] == 4:
+        return np.array([z_rotation_intensity(vector, theta) for theta in angles])
+    else:
+        return np.array([apply_z_rotation(vector, theta) for theta in angles])
 
 def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.ndarray:
     """
@@ -88,6 +102,7 @@ def vector_match(
         # Transpose to 3D
         exp3d = np.array(vector_to_3D(exp_vec,reciprocal_radius))
         # Mirror exp3d over the YZ-plane
+        #NOTE: Endrer foreløpig for intensities
         exp3d_mirror = exp3d * np.array([-1,1,1])
         results = []
 
@@ -146,9 +161,3 @@ def vector_match(
     # Return array of shape (len(experimental), n_best, 4)
     n_array = np.array(result_lst)
     return n_array
-
-
-
-
-
-
