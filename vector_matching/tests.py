@@ -27,7 +27,8 @@ def vector_match_score_test(
 
     # to 3D and mirror
     exp3d = vector_to_3D(experimental, reciprocal_radius)
-    exp3d_mirror = exp3d * np.array([-1,1,1])
+    #NOTE: Endrer denne kjapt til å fungere for intensities.
+    exp3d_mirror = exp3d * np.array([-1,1,1,1])
     results =[]
 
     for sim_idx, trees in enumerate(precomputed_trees):
@@ -36,6 +37,9 @@ def vector_match_score_test(
         for rot_idx, sim_tree in enumerate(trees):
             # Points in current sim frame
             sim_points = sim_tree.data
+            # N_exp, N_sim = exp3d.shape[0], sim_tree.data.shape[0]
+            # #NOTE: Testing new unmatched penalty
+            # unmatched_penalty = np.abs((N_exp - N_sim) / (N_exp + N_sim))
 
             # Experimental tree
             exp_tree = cKDTree(exp3d)
