@@ -1,5 +1,4 @@
 import hyperspy.api as hs
-import pyxem as pxm
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -102,7 +101,7 @@ if __name__ == '__main__':
     # print(radius)
     # radius = 0.26425
     # mask_center(dp,radius,DIR_HSPY+CENTER_FILE)
-    params_f29 = {
+    params = {
         'method': 'laplacian_of_gaussian',
         'get_intensity': False,
         'min_sigma': 4,
@@ -112,28 +111,17 @@ if __name__ == '__main__':
         'log_scale': True,
         'exclude_border': True
     }
-    filename = 'LF_cal_log_m_center_strict_peaks.hspy'
-    mask_background(dp, DIR_HSPY+filename, **params_f29)
-    # file29 = 'f29_peaks.npy'
-    # f29_data = peak_find_one_frame(dp,29,**params_f29)
-    # np.save(file=DIR_NPY+file29, arr=f29_data, allow_pickle=True)
-    # print("File saved:",DIR_NPY+file29)
-    # data = get_peaks(dp, **params_f29)
-    # np.save(file=DIR_NPY+VECTOR_FILE, arr=data, allow_pickle=True)
-    # print("File saved:",DIR_NPY+VECTOR_FILE)
-   
-
-    params_f56= {
+    params_intensity = {
         'method': 'laplacian_of_gaussian',
-        'get_intensity': False,
-        'min_sigma': 4.,
+        'get_intensity': True,
+        'min_sigma': 4,
         'max_sigma': 5,
         'num_sigma': 1,
         'overlap': 0.1,
         'log_scale': True,
         'exclude_border': True
     }
-    # file56 = 'f56_peaks.npy'
-    f56_data = peak_find_one_frame(dp,56,**params_f56)
-    # np.save(file=DIR_NPY+file56, arr=f56_data, allow_pickle=True)
-    # print("File saved:",DIR_NPY+file56)
+    filename = 'peaks_intensity_all_LoG.npy'
+    peaks = get_peaks(dp,**params_intensity)
+    np.save(file=DIR_NPY+filename, arr=peaks,allow_pickle=True)
+
