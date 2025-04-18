@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import f
 from scipy.spatial import cKDTree
 from sphere_matching import vector_to_3D, filter_sim
 from time import time
@@ -24,6 +25,7 @@ def vector_match_score_test(
     ]
     t2 = time()
     print(f"Pre-compute time: {(t2-t1)} sec")
+
 
     # to 3D and mirror
     exp3d = vector_to_3D(experimental, reciprocal_radius)
@@ -80,6 +82,43 @@ def vector_match_score_test(
     # Return array of shape (len(experimental), n_best, 4)
     n_array = np.array(result_lst)
     return n_array
+
+def test_full_vector_match(
+    experimental:np.ndarray,
+    simulated:np.ndarray,
+    step_size:float,
+    reciprocal_radius:float,
+    distance_bound=0.05,
+    unmatched_penalty=0.75
+) -> np.ndarray:
+
+    """
+    Tester full matching ved å Pre-compute exp og sim
+    """
+    result_lst = []
+    step_size_rad = np.deg2rad(step_size)
+
+    precomputed_trees = [
+        [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+        for sim_frame in simulated
+    ]
+
+    precom_exp = [
+        [cKDTree(exp3d) for exp3d in vector_to_3D(exp_frame,reciprocal_radius)]
+        for exp_frame in experimental
+    ]
+    for exp_tree in precom_exp:
+
+        for sim_idx, trees in enumerate(precomputed_trees):
+            best_score, best_rotation, mirror = float('inf'), 0.0, 1.0
+
+            for rot_idx, sim_tree in enumerate(trees):
+                sim_point = sim_tree.data
+                #NOTE: Finn ut hvordaan jeg skal quereieire exp trees, ...
+                dist_exp_to_sim, _ = sim_tree.query(k)
+
+
+     
 
 def test_params_and_save(exp, exp_frame,sim, rot, reciprocal_radius, dist_bound, penalty):
     exp = exp[exp_frame]
