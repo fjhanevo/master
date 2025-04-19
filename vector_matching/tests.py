@@ -1,17 +1,18 @@
 import numpy as np
 from scipy.ndimage import f
 from scipy.spatial import cKDTree
-from sphere_matching import vector_to_3D, filter_sim
+from sphere_matching import vector_to_3D, filter_sim, apply_z_rotation
 from time import time
+import plotting
 
 def vector_match_score_test(
-        experimental, 
-        simulated, 
-        step_size, 
-        reciprocal_radius,
-        distance_bound=0.05,
-        unmatched_penalty=0.75
-):
+    experimental:np.ndarray, 
+    simulated:np.ndarray, 
+    step_size:float, 
+    reciprocal_radius:float,
+    distance_bound=0.05,
+    unmatched_penalty=0.75
+) -> np.ndarray:
     """
     Match only one frame
     """
@@ -39,9 +40,6 @@ def vector_match_score_test(
         for rot_idx, sim_tree in enumerate(trees):
             # Points in current sim frame
             sim_points = sim_tree.data
-            # N_exp, N_sim = exp3d.shape[0], sim_tree.data.shape[0]
-            # #NOTE: Testing new unmatched penalty
-            # unmatched_penalty = np.abs((N_exp - N_sim) / (N_exp + N_sim))
 
             # Experimental tree
             exp_tree = cKDTree(exp3d)
@@ -82,42 +80,6 @@ def vector_match_score_test(
     # Return array of shape (len(experimental), n_best, 4)
     n_array = np.array(result_lst)
     return n_array
-
-def test_full_vector_match(
-    experimental:np.ndarray,
-    simulated:np.ndarray,
-    step_size:float,
-    reciprocal_radius:float,
-    distance_bound=0.05,
-    unmatched_penalty=0.75
-) -> np.ndarray:
-
-    """
-    Tester full matching ved å Pre-compute exp og sim
-    """
-    result_lst = []
-    step_size_rad = np.deg2rad(step_size)
-
-    precomputed_trees = [
-        [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
-        for sim_frame in simulated
-    ]
-
-    precom_exp = [
-        [cKDTree(exp3d) for exp3d in vector_to_3D(exp_frame,reciprocal_radius)]
-        for exp_frame in experimental
-    ]
-    for exp_tree in precom_exp:
-
-        for sim_idx, trees in enumerate(precomputed_trees):
-            best_score, best_rotation, mirror = float('inf'), 0.0, 1.0
-
-            for rot_idx, sim_tree in enumerate(trees):
-                sim_point = sim_tree.data
-                #NOTE: Finn ut hvordaan jeg skal quereieire exp trees, ...
-                dist_exp_to_sim, _ = sim_tree.query(k)
-
-
      
 
 def test_params_and_save(exp, exp_frame,sim, rot, reciprocal_radius, dist_bound, penalty):
@@ -130,14 +92,14 @@ def test_params_and_save(exp, exp_frame,sim, rot, reciprocal_radius, dist_bound,
     n_best = n_array[0][0]
     frame, score, rotation, mirror = n_best[0],n_best[1],n_best[2], n_best[3]
 
-    exp3d = sm.vector_to_3D(exp,reciprocal_radius)
+    exp3d = vector_to_3D(exp,reciprocal_radius)
     rot = np.deg2rad(rot)
     if mirror < 0.0:
         exp3d *= np.array([-1,1,1])
     sim = sim[int(frame)]
     sim_filtered = sim[~np.all(sim==0,axis=1)]
-    sim_filtered3d = sm.vector_to_3D(sim_filtered, reciprocal_radius)
-    sim_filtered3d_rot = np.array([sm.apply_z_rotation(vec,rot) for vec in sim_filtered3d])
+    sim_filtered3d = vector_to_3D(sim_filtered, reciprocal_radius)
+    sim_filtered3d_rot = np.array([apply_z_rotation(vec,rot) for vec in sim_filtered3d])
     sim_str = 'sim['+str(int(frame))+']'
     exp_str = 'exp['+str(exp_frame)+']'
     dir = 'vector_matching/tmp_plots/'
