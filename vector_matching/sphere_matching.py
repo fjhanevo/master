@@ -8,6 +8,10 @@ Fil for sphere matching!:)
 """
 
 def fast_polar(cart_vec):
+    """
+    Polar transforms 2D cartesian vectors to 2D polar vectors
+    using pyxem, wow!
+    """
     s = pxm.signals.DiffractionVectors(cart_vec)
     s = s.to_polar()
     return s.data
@@ -16,6 +20,16 @@ def vector_to_3D(vector:np.ndarray,reciprocal_radius:float) -> np.ndarray:
     """
     Takes in a 2D polar vector and converts it to 
     a 3D sphere.
+    Params:
+    -------
+        vector: np.ndarray
+            2D polar vector (r,theta)
+        reciprocal_radius: float
+            reciprocal space radius to account for
+    Returns:
+    -------
+        vector3d: np.ndarray
+            3D vector coordinates
     """
     # get r coords
     r = vector[...,0]
@@ -29,19 +43,25 @@ def vector_to_3D(vector:np.ndarray,reciprocal_radius:float) -> np.ndarray:
     y = np.sin(l)*np.sin(theta)
     z = np.cos(l)
 
-    # create new dataset, check for intensity
-    if vector.shape[1] == 3:
-        intensity = vector[...,2]
-        vector3d = np.stack([x,y,z,intensity],axis=-1)
-    else:
-        vector3d = np.stack([x,y,z],axis=-1)
+    vector3d = np.stack([x,y,z],axis=-1)
 
     return vector3d
 
 def apply_z_rotation(vector:np.ndarray,theta:float) -> np.ndarray:
     """
-    It just rotates the sphere around the z-axis with a given angle
+    It just rotates the sphere around the z-axis with a given angle.
+    Params:
+    -------
+        vector: np.ndarray
+            input 3D vector
+        theta: float
+            angle to rotate vector for
+    Returns:
+    -------
+        np.ndarray
+            the dot product between rot matrix and input vector
     """
+
     cos_theta = np.cos(theta)
     sin_theta = np.sin(theta)
     rot = np.array([[cos_theta, -sin_theta, 0],
@@ -49,6 +69,7 @@ def apply_z_rotation(vector:np.ndarray,theta:float) -> np.ndarray:
                     [0,0,1]])
     return vector @ rot.T
 
+#NOTE: Will remove this and deal with intensities in a different way
 def z_rotation_intensity(vector:np.ndarray, theta:float) -> np.ndarray:
     # pop out intensities
     temp_vector = np.stack([vector[...,0], vector[...,1], vector[...,2]], axis=-1)
@@ -57,16 +78,40 @@ def z_rotation_intensity(vector:np.ndarray, theta:float) -> np.ndarray:
     return np.stack([rot_vector[...,0], rot_vector[...,1], rot_vector[...,2], vector[...,3]], axis=-1)
 
 def full_z_rotation(vector:np.ndarray, step_size:float) -> np.ndarray:
+    """
+    Helper function to add a rotation dimension.
+    Params:
+    -------
+        vector: np.ndarray
+            3D input vector
+        step_size: float
+            angular increment
+    Returns:
+    -------
+        np.ndarray:
+        fully rotated vector around the z-axis.
+    """
     angles = np.arange(0,2*np.pi,step_size).tolist()
-    if vector.shape[1] == 4:
-        return np.array([z_rotation_intensity(vector, theta) for theta in angles])
-    else:
-        return np.array([apply_z_rotation(vector, theta) for theta in angles])
+    return np.array([apply_z_rotation(vector, theta) for theta in angles])
 
 def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.ndarray:
     """
     Helper function for vector_match() to filter out zeros
-    from sim because its homo, and now its in-homo
+    from sim because its homo, and now its in-homo.
+    Params:
+    -------
+        sim: np.ndarray
+            simulated 3D vector
+        step_size: float
+            angular increment 
+        reciprocal_radius: float
+            reciprocal spae radius to account for
+    Returns:
+    -------
+        full_z_rotation(): np.ndarray
+            rotates the vector fully around the z-axis for given
+            step_size, adds a new dimension in the dataset,
+            from (N,3) to (M,N,3).
     """
     sim_filtered = sim[~np.all(sim == 0, axis=1)]
 
@@ -102,7 +147,6 @@ def vector_match(
         # Transpose to 3D
         exp3d = np.array(vector_to_3D(exp_vec,reciprocal_radius))
         # Mirror exp3d over the YZ-plane
-        #NOTE: Endrer foreløpig for intensities
         exp3d_mirror = exp3d * np.array([-1,1,1])
         results = []
 
