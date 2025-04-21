@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.ndimage import f
 from scipy.spatial import cKDTree
 from sphere_matching import vector_to_3D, filter_sim, apply_z_rotation
 from time import time
@@ -49,6 +48,7 @@ def vector_match_score_test(
             dist_exp_to_sim, _ = sim_tree.query(exp3d,distance_upper_bound=distance_bound)
             dist_sim_to_exp, _ = exp_tree.query(sim_points,distance_upper_bound=distance_bound)
 
+            #NOTE: Endrer score til å ta hensyn for intensities
             n_unmatched_exp = np.sum(np.isinf(dist_exp_to_sim))
             n_unmatched_sim = np.sum(np.isinf(dist_sim_to_exp))
             matched_score = np.sum(dist_exp_to_sim[np.isfinite(dist_exp_to_sim)])
