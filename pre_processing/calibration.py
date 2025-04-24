@@ -22,8 +22,9 @@ def get_trace(dp, frame, coords:tuple):
     # trace to get pixel peak distances
     trace = line(dp_frame).as_signal1D(0)
     trace.plot(norm='log',title='')
-    xticks = np.arange(0,240,20)
-    plt.xticks(xticks)
+    # xticks = np.arange(0,340,20)
+    plt.title('')
+    # plt.xticks(xticks)
     plt.tight_layout()
     plt.show()
 
@@ -34,9 +35,14 @@ if __name__ == "__main__":
     FILE = 'LeftFish_to_calibrate.hspy'
     # Load dataset
     dp = hs.load(DIR_HSPY+FILE)
-    # Al lattice parameter
-    a=4.0495
-    frame  = 56
+    a = 4.0495  # Al lattice parameter
+    frame = 56
     coords = (11,230,249,22)
     get_trace(dp,frame, coords)
+    dist_A = (161-46)/2
+    dist_B = (156-56)/2
+    g_dist = 2.0/np.sqrt(3)
+    print(g_dist/(dist_B+dist_A))
+
+
 
