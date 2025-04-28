@@ -1,52 +1,14 @@
 import hyperspy.api as hs
 import pyxem as pxm
-import orix 
 from orix.plot import IPFColorKeyTSL
 from orix.vector import Vector3d
-from diffpy.structure import Atom, Lattice, Structure
-from diffsims.generators.simulation_generator import SimulationGenerator
 import matplotlib.pyplot as plt
-import numpy as np
-plt.rcParams.update({'font.size':18})
+import simulation as sim
 
-def unit_cell(a=4.0495):
-    atoms = [Atom('Al', [0,0,0]), Atom('Al', [0.5,0.5,0]),
-             Atom('Al', [0.5, 0, 0.5]), Atom('Al', [0,0.5,0.5])]
-
-    lattice = Lattice(a,a,a,90,90,90)
-    phase = orix.crystal_map.Phase(name='Al', space_group=225, structure=Structure(atoms, lattice))
-    return phase
-
-def gen_orientation_grid(phase, angular_resolution=0.5):
-    grid = orix.sampling.get_sample_reduced_fundamental(
-        angular_resolution,
-        point_group=phase.point_group,
-    )
-
-    orientations = orix.quaternion.Orientation(grid, symmetry=phase.point_group)
-    orientations.scatter('ipf')
-    
-    return grid, orientations
-
-def get_simulation_generator(precession_angle=1.0, 
-                             minimum_intensity=1e-4,
-                             approximate_precession=True):
-
-    return SimulationGenerator(precession_angle=precession_angle,
-                               minimum_intensity=minimum_intensity,
-                               approximate_precession=approximate_precession)
-
-def compute_simulations(simgen,phase,grid,reciprocal_radius=1.35, 
-                        max_excitation_error=0.01,with_direct_bream=False):
-    return simgen.calculate_diffraction2d(
-        phase=phase,                                 # phase to simulate for
-        rotation=grid,                               # orientations to simulate for
-        reciprocal_radius=reciprocal_radius,         # max radius to consider in [Å^-1]
-        with_direct_beam=with_direct_bream,          # option to include direct beam
-        max_excitation_error=max_excitation_error,   # max excitation error, s
-    )
-
-def plot_ipf(data, idx, phase, orientation,cmap:str):
+def plot_ipf(data, idx, phase, orientation ,cmap:str):
+    """
+    Plots an IPF with a red marker indicating the best found orientation.
+    """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
@@ -56,7 +18,7 @@ def plot_ipf(data, idx, phase, orientation,cmap:str):
     loris= data.to_single_phase_orientations()
     loris_best = loris[idx,0]
     ax.scatter(orientations, c=correlations, cmap=cmap)
-    ax.scatter(loris_best,c='red',marker='o',s=100)
+    ax.scatter(loris_best,c='red',marker='o',s=100) # best found orientation
     plt.show()
 
 def plot_with_markers(results, file,i,j):
@@ -155,27 +117,28 @@ if __name__ == '__main__':
     # ------------------------------------------ #
     ### SIMULATED ###
     s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
-    phase = unit_cell()
-    grid, orientation = gen_orientation_grid(phase)
-    simgen = get_simulation_generator(precession_angle=1., minimum_intensity=1e-4, approximate_precession=True)
-    simulation = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
+    phase = sim.unit_cell()
+    grid, orientation = sim.gen_orientation_grid(phase)
+    simgen = sim.get_simulation_generator(precession_angle=1., minimum_intensity=1e-4, approximate_precession=True)
+    simulation = sim.compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
 
     sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
     frame = 29
     i, j = frame, frame+1
     
+    print(sim_results.data.shape)
     ### EXPERIMENTAL ###
-    exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    exp2 = np.load(DIR_NPY+'ormap_step1deg_dist005_penalty075.npy', allow_pickle=True)
-    exp2 = to_orientation_map(exp2,simulation)
-    print(exp_results.shape)
-    exp_results = to_orientation_map(exp_results,simulation)
+    # exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
+    # exp2 = np.load(DIR_NPY+'ormap_step1deg_dist005_penalty075.npy', allow_pickle=True)
+    # exp2 = to_orientation_map(exp2,simulation)
+    # print(exp_results.shape)
+    # exp_results = to_orientation_map(exp_results,simulation)
     # exp_reshaped = np.reshape(exp_results, (6,10))
 
     ### PLOTS ### 
-    plot_misorientation_scatter(exp_results)
-    plot_misorientation_scatter(exp2)
+    # plot_misorientation_scatter(exp_results)
+    # plot_misorientation_scatter(exp2)
     # plot_ipf(sim_results,frame,phase,orientation, 'viridis')
     # plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
     # plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
@@ -183,6 +146,6 @@ if __name__ == '__main__':
     # plot_misorientation(exp_results)
     # plot_misorientation(sim_results)
 
-    plot_crystal_map(sim_results,phase)
+    # plot_crystal_map(sim_results,phase)
 
     
