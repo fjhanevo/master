@@ -1,9 +1,11 @@
-import hyperspy.api as hs
 import orix 
 from diffpy.structure import Atom, Lattice, Structure
 from diffsims.generators.simulation_generator import SimulationGenerator
 import numpy as np
-import matplotlib.pyplot as plt
+
+"""
+File to create a simulation of FCC Al templates.
+"""
 
 def unit_cell(a=4.0495):
     atoms = [Atom('Al', [0,0,0]), Atom('Al', [0.5,0.5,0]),
@@ -49,27 +51,3 @@ def get_polar_coords(sim,filename:str) -> None:
     rt = np.stack([r,theta], axis=-1)
     # save that B
     np.save(file=filename, arr=rt, allow_pickle=True)
-        
-        
-if __name__ == '__main__':
-    DIR_HSPY = 'processed_hspy_files/' 
-    DIR_NPY = 'npy_files/'
-    FILE = 'LeftFish_unmasked.hspy'
-    FILE = 'LeftFish_masked_log_calibrated.hspy'
-    SIM_FILE = 'test_orientation_map.npy'
-
-    # Load the file
-    s = hs.load(DIR_HSPY+FILE)
-
-    s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
-    phase = unit_cell()
-    grid, orientation = gen_orientation_grid(phase)
-    simgen = get_simulation_generator(precession_angle=1., minimum_intensity=1e-4, approximate_precession=True)
-    simulations = compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
-                                      max_excitation_error=0.05)
-    
-    # get_polar_coords(simulations, DIR_NPY+SIM_FILE)
-    r,theta,i =simulations.polar_flatten_simulations() 
-    dataset = np.stack([r,theta,i],axis=-1)
-    print(dataset.shape)
-    np.save(file=DIR_NPY+'sim_r_theta_intensity.npy', arr=dataset, allow_pickle=True)
