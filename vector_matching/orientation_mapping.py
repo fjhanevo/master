@@ -59,7 +59,6 @@ def plot_ipf(data, idx, phase, orientation,cmap:str):
     ax.scatter(loris_best,c='red',marker='o',s=100)
     plt.show()
 
-#NOTE: Denne funker ikke for 1 frame, gidder ikke fikse nå
 def plot_with_markers(results, file,i,j):
     """
     Plot markers on dataset
@@ -71,7 +70,7 @@ def plot_with_markers(results, file,i,j):
     data.add_marker(results.to_markers(annotate=True))
     plt.show()
 
-def plot_misorientation(data):
+def plot_misorientation_hist(data):
     loris = data.to_single_phase_orientations()
     loris_best = loris[:,0]
     loris_ang  = loris_best.angle_with_outer(loris_best, degrees=True)
@@ -144,16 +143,15 @@ if __name__ == '__main__':
     FILE = 'ormap_step05deg_dist005_penalty075.npy'
 
     s = hs.load(DIR_HSPY+HSPY)
-    print(s.axes_manager)
     ### UNCOMMENTED FOR crystal_map ### 
     # ------------------------------------------ #
-    s = np.reshape(s.data,(6,10,256,256))
-    s = pxm.signals.ElectronDiffraction2D(s)
-    s.set_diffraction_calibration(0.0107)
-    print(s.axes_manager.navigation_axes[0].units)
-    print(s.axes_manager)
-    s.axes_manager.navigation_axes[0].units = r"$Å^{-1}$"
-    print(s.axes_manager.navigation_axes[0].units)
+    # s = np.reshape(s.data,(6,10,256,256))
+    # s = pxm.signals.ElectronDiffraction2D(s)
+    # s.set_diffraction_calibration(0.0107)
+    # print(s.axes_manager.navigation_axes[0].units)
+    # print(s.axes_manager)
+    # s.axes_manager.navigation_axes[0].units = r"$Å^{-1}$"
+    # print(s.axes_manager.navigation_axes[0].units)
     # ------------------------------------------ #
     ### SIMULATED ###
     s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
@@ -164,23 +162,27 @@ if __name__ == '__main__':
                                       max_excitation_error=0.05)
 
     sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
-    plot_crystal_map(sim_results,phase)
-    frame = 56
+    frame = 29
     i, j = frame, frame+1
     
     ### EXPERIMENTAL ###
-    # exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    # exp_results = to_orientation_map(exp_results,simulation)
-    # print(sim_results.data[56][0])
+    exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
+    exp2 = np.load(DIR_NPY+'ormap_step1deg_dist005_penalty075.npy', allow_pickle=True)
+    exp2 = to_orientation_map(exp2,simulation)
+    print(exp_results.shape)
+    exp_results = to_orientation_map(exp_results,simulation)
+    # exp_reshaped = np.reshape(exp_results, (6,10))
 
     ### PLOTS ### 
-    # plot_misorientation_scatter(exp_results)
-    # plot_misorientation_scatter(sim_results)
-    # plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    plot_misorientation_scatter(exp_results)
+    plot_misorientation_scatter(exp2)
     # plot_ipf(sim_results,frame,phase,orientation, 'viridis')
-    # plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    # plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
     # plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
+    # plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
     # plot_misorientation(exp_results)
     # plot_misorientation(sim_results)
+
+    plot_crystal_map(sim_results,phase)
 
     
