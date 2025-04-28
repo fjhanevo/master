@@ -3,7 +3,13 @@ from orix.plot import IPFColorKeyTSL
 from orix.vector import Vector3d
 import matplotlib.pyplot as plt
 import numpy as np
-plt.rcParams.update({'font.size':18})
+
+params = {
+    'figure.figsize':(8.0,4.0), 'axes.grid': True,
+    'lines.markersize': 8, 'lines.linewidth': 2,
+    'font.size': 18
+}
+plt.rcParams.update(params)
 
 """
 Fil for plottefunksjoner
