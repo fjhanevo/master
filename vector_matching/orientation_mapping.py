@@ -3,6 +3,7 @@ import pyxem as pxm
 import numpy as np
 import simulation as sim
 import plotting as plot
+import matplotlib.pyplot as plt
 
 
 def to_orientation_map(data, simulation):
@@ -17,6 +18,52 @@ def to_orientation_map(data, simulation):
 
     return data
 
+def compare_orientations(tm_orientation:np.ndarray, vm_orientation:np.ndarray) -> dict:
+    """
+    Commpares orientation from TM and VM
+    Params: 
+        tm_orientation: np.ndarray
+            template matching results array (N,n_best,4)
+        vm_orientation: np.ndarray
+    Returns:
+        dict
+            summary of stats of the comparison
+    """
+    assert tm_orientation.shape == vm_orientation.shape
+
+
+    # Extract rotation angles in degrees only includes the n_best
+    tm_rot = tm_orientation[:,:,2]
+    vm_rot = vm_orientation[:,:,2]
+
+    # Compute rotation difference, accounting for wrap-around at 360deg
+    diff = np.abs(tm_rot - vm_rot) % 360
+    diff = np.where(diff > 180, 360 - diff, diff)   # take shortest angle
+
+    # Optionally: check simulation indices too
+    sim_match = tm_orientation[:,:, 0] == vm_orientation[:,[0],0]
+
+    # Stats
+    stats = {
+        "mean_abs_rotation_diff_deg": np.mean(diff),
+        "median_abs_rotation_diff_deg": np.median(diff),
+        "max_rotation_diff_deg": np.max(diff),
+        "min_rotation_diff_deg": np.min(diff),
+        "percent_sim_idx_match": 100*np.mean(sim_match)
+    }
+
+    plt.figure(figsize=(8,4))
+    plt.hist(diff.flatten(), bins=30, edgecolor='black')
+    plt.xlabel("Absolute Rotation Difference (degrees)")
+    plt.ylabel("Frequency")
+    
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    return stats 
+
+
 if __name__ == '__main__':
     DIR_NPY = 'npy_files/'
     DIR_HSPY = 'processed_hspy_files/'
@@ -25,7 +72,7 @@ if __name__ == '__main__':
     FILE = 'ormap_step05deg_dist005_penalty075.npy'
 
     s = hs.load(DIR_HSPY+HSPY)
-    ### UNCOMMENTED FOR crystal_map ### 
+    ### UNCOMMENT FOR crystal_map ### 
     # ------------------------------------------ #
     # s = np.reshape(s.data,(6,10,256,256))
     # s = pxm.signals.ElectronDiffraction2D(s)
@@ -50,16 +97,20 @@ if __name__ == '__main__':
     
     ### EXPERIMENTAL ###
     exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    print(exp_results.shape)
     exp_results = to_orientation_map(exp_results,simulation)
 
-    ### PLOTS ### 
-    plot.plot_misorientation_scatter(exp_results)
-    plot.plot_ipf(sim_results,frame,phase,orientation, 'viridis')
-    plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
-    plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
-    plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    print(exp_results.data[56][0])
+    # stats = compare_orientations(sim_results.data, exp_results.data)
+    # print(stats)
 
+    ### PLOTS ### 
+    # plot.plot_misorientation_scatter(exp_results)
+    # plot.plot_misorientation_scatter(sim_results)
+    # plot.plot_ipf(sim_results,frame,phase,orientation, 'viridis')
+    # plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    # plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
+    # plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    #
     ### Crystal map (reshaped dataset) ### 
     # plot.plot_crystal_map(sim_results,phase)
 
