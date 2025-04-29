@@ -1,3 +1,4 @@
+import gc
 import numpy as np
 import plotting
 import sphere_matching as sm
@@ -84,43 +85,70 @@ if __name__ == '__main__':
     FILE_SIM_INTENSITY = 'sim_r_theta_intensity.npy'
     FILE_ORMAP = 'ormap_step05deg_dist005_penalty075.npy'
 
-    experimental = np.load(DIR_NPY+FILE_INTENSITY,allow_pickle=True)
+    experimental = np.load(DIR_NPY+FILE_STRICT,allow_pickle=True)
     # Quick polar transform
     experimental = sm.fast_polar(experimental)
-    simulated = np.load(DIR_NPY+FILE_SIM_INTENSITY,allow_pickle=True)
+    simulated = np.load(DIR_NPY+FILE_SIM,allow_pickle=True)
     
     reciprocal_radius = 1.35 # [Å^-1]
-    step_size = 1    # Degrees
-    exp_frame = 29
+    step_size = 0.5    # Degrees
+    step_size = 100
+    exp_frame = 56
     n_best = len(simulated) 
     penalty = 1.0 
     
-    print(experimental[exp_frame].shape)
-    test = experimental[exp_frame]
-    print(test[:,:3].shape)
-    exp3d = sm.vector_to_3D(test[:,:3], reciprocal_radius) 
-    org = np.hstack([exp3d, test[:, [-1]]])
-    print(exp3d.shape)
-    print(org.shape)
+    n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
 
 
+    ### FILE 1 ###
+    # This is for vector_match()
+    filename = 'ormap_step05deg_vector_match_normalised_wrapped.npy'
+    t1 = time()
+    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
+    np.save(file=filename, arr=n_array, allow_pickle=True)
+    t2 = time()
+    print(f"Computation time {(t2-t1)/60} min")
+
+    # Free memory
+    del n_array
+    gc.collect()
+
+    ### FILE 2 ###
+    # this is for vector_match_ang_score()
+    filename = 'ormap_step05deg_vector_match_ang_score_normalised_wrapped.npy'
+    t1 = time()
+    n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
+    np.save(file=filename, arr=n_array, allow_pickle=True)
+    t2 = time()
+    print(f"Computation time {(t2-t1)/60} min")
+
+    # Free memory
+    del n_array
+    gc.collect()
+
+    ### FILE 3 ###
+    # this is for vector_match_sum_score()
+    filename = 'ormap_step05deg_vector_match_sum_score_normalised_wrapped.npy'
+    t1 = time()
+    n_array = sm.vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
+    np.save(file=filename, arr=n_array, allow_pickle=True)
+    t2 = time()
+    print(f"Computation time {(t2-t1)/60} min")
+
+    # simtest= [simulated[4095]]
 
     #### KEEP FOR LATER ####
     # filename = 'f56_ang1deg_n_best_all.npy'
     # # save_one_frame(experimental[exp_frame],simulated,step_size,reciprocal_radius,len(simulated),DIR_NPY+filename)
+    # sim_frame, _, rotation, mirror = match_one_frame(experimental[exp_frame], simtest,step_size, reciprocal_radius, n_best,penalty)
     # sim_frame, _, rotation, mirror = match_one_frame(experimental[exp_frame], simulated,step_size, reciprocal_radius, n_best,penalty)
     # sim_str = 'sim['+str(sim_frame)+']'
     # exp_str = 'exp['+str(exp_frame)+']'
     # lbls = (sim_str, exp_str)
     # exp_and_sim_sphere_plot(experimental[exp_frame],simulated[int(sim_frame)],rotation,reciprocal_radius,mirror,lbls,)
-
-    # create_and_save_dataset(
-    #     experimental,
-    #     simulated,
-    #     step_size,
-    #     reciprocal_radius,
-    #     n_best,
-    #     DIR_NPY+FILE_ORMAP
-    # )
 
 
