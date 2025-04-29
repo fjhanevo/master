@@ -121,27 +121,28 @@ def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.n
 
 def wrap_degrees(angle_rad):
     """
-    Helper function to fix the 90 deg shift to match Pyxems convention.
+    Function to fix the 90 deg shift to match Pyxems convention.
     Wraps around if deg > 180. 
     """
     angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
     return angle_deg - 360 if angle_deg > 180 else angle_deg
 
 def vector_match(
-    experimental:np.ndarray, 
-    simulated:np.ndarray, 
-    step_size:float, 
-    reciprocal_radius:float, 
-    n_best:int,
-    distance_bound = 0.05,
-    unmatched_penalty = 1.0 
+    experimental: np.ndarray, 
+    simulated: np.ndarray, 
+    step_size: float, 
+    reciprocal_radius: float, 
+    n_best: int,
+    distance_bound: float = 0.05,
+    unmatched_penalty: float = 1.0 
 ) -> np.ndarray:
     """
     Oppdaterer denne senere.
     """
-    result_lst = []
+    n_array = []
 
     #TODO: Add pre-filtering step based on n_best (spot match)
+    #NOTE: kommer nok ikke til å gjøre dette
 
     # Convert input degrees to radians
     step_size_rad = np.deg2rad(step_size)
@@ -213,22 +214,103 @@ def vector_match(
         
         # Sort by ascending score and select n_best
         results = sorted(results, key = lambda x : x[1])[:n_best]
-        result_lst.append(np.array(results))
+        n_array.append(np.array(results))
     # Return array of shape (len(experimental), n_best, 4)
-    n_array = np.array(result_lst)
-    return n_array
+    return np.array(n_array)
+
+def angular_score(
+    exp_vecs: np.ndarray,
+    sim_vecs: np.ndarray,
+    angle_thresh_rad: float = 0.05
+):
+    matched_angles = []
+    unmatched_exp = 0
+    for exp_vec in exp_vecs:
+        dots = np.clip(sim_vecs @ exp_vec, -1.0, 1.0)
+        angles = np.arccos(dots)
+        min_angle = np.min(angles)
+        if min_angle < angle_thresh_rad:
+            matched_angles.append(min_angle)
+        else:
+            unmatched_exp += 1
+
+    unmatched_sim = 0
+    for sim_vec in sim_vecs:
+        dots = np.clip(exp_vecs @ sim_vec, -1.0, 1.0)
+        angles = np.arccos(dots)
+        min_angle = np.min(angles)
+        if min_angle >= angle_thresh_rad:
+            unmatched_sim += 1
+
+    n_tot = len(exp_vecs) + len(sim_vecs)
+    score = np.mean(matched_angles) if matched_angles else np.pi
+    score += unmatched_exp + unmatched_sim
+    # return normalised score
+    return score / n_tot
+
+def vector_match_ang_score(
+    experimental: np.ndarray,
+    simulated: np.ndarray,
+    step_size: float,
+    reciprocal_radius: float,
+    n_best: int,
+    angle_thresh_rad: float = 0.05
+):
+    """
+
+    """
+    step_size_rad = np.deg2rad(step_size)
+
+    precomputed_rotated_vectors = [
+        filter_sim(sim_frame, step_size_rad, reciprocal_radius)
+        for sim_frame in simulated
+    ]
+
+    n_array = []
+
+    for exp_vec in tqdm(experimental):
+        exp3d = vector_to_3D(exp_vec, reciprocal_radius)
+        exp3d_mirror = exp3d * np.array([-1,1,1])
+        results = []
+
+        for sim_idx, sim_rotations in enumerate(precomputed_rotated_vectors):
+            best_score, best_rotation, mirror = float('inf'), 0.0, 1.0
+
+            for rot_idx, sim3d in enumerate(sim_rotations):
+                score = angular_score(exp3d, sim3d, angle_thresh_rad)
+                score_mirror = angular_score(exp3d_mirror, sim3d, angle_thresh_rad)
+
+                if score < best_score:
+                    best_score = score
+                    best_rotation = wrap_degrees(rot_idx * step_size_rad)
+                    mirror = 1.0
+
+                if score_mirror < best_score:
+                    best_score = score_mirror
+                    best_rotation = wrap_degrees(rot_idx * step_size_rad)
+                    mirror = -1.0
+
+            results.append((sim_idx, best_score, best_rotation, mirror))
+
+        # sort and keep best matches
+        results = sorted(results, key=lambda x: x[1])[:n_best]
+        n_array.append(np.array(results))
+
+    return np.array(n_array)
+
+
 
 def vector_match_sum_score(
-    experimental:np.ndarray, 
-    simulated:np.ndarray, 
-    step_size:float, 
-    reciprocal_radius:float, 
-    n_best:int
+    experimental: np.ndarray, 
+    simulated: np.ndarray, 
+    step_size: float, 
+    reciprocal_radius: float, 
+    n_best: int
 ) -> np.ndarray:
     """
     This sucks
     """
-    result_lst = []
+    n_array = []
     # Convert input degrees to radians
     step_size_rad= np.deg2rad(step_size)
     # precompute KD-trees for all rotated sims
@@ -273,8 +355,7 @@ def vector_match_sum_score(
             results.append((sim_idx, best_score, best_rotation, mirror))
         # Sort by ascending score and select n_best
         results = sorted(results, key = lambda x : x[1])[:n_best]
-        result_lst.append(np.array(results))
+        n_array.append(np.array(results))
     # Return array of shape (len(experimental), n_best, 4)
-    n_array = np.array(result_lst)
-    return n_array
+    return np.array(n_array)
  
