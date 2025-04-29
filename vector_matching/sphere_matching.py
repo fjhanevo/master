@@ -55,7 +55,7 @@ def apply_z_rotation(vector:np.ndarray,theta:float) -> np.ndarray:
         vector: np.ndarray
             input 3D vector
         theta: float
-            angle to rotate vector for
+            angle to rotate vector for in radians 
     Returns:
     -------
         np.ndarray
@@ -160,6 +160,9 @@ def vector_match(
                 # Points in current sim frame
                 sim_points = sim_tree.data
 
+                # total points
+                n_total = len(exp3d) + len(sim_points)
+                
                 # Experimental tree
                 exp_tree = cKDTree(exp3d)
                 exp_tree_mirror = cKDTree(exp3d_mirror)
@@ -171,7 +174,8 @@ def vector_match(
                 n_unmatched_exp = np.sum(np.isinf(dist_exp_to_sim))
                 n_unmatched_sim = np.sum(np.isinf(dist_sim_to_exp))
                 matched_score = np.sum(dist_exp_to_sim[np.isfinite(dist_exp_to_sim)])
-                score = matched_score + unmatched_penalty * (n_unmatched_exp + n_unmatched_sim)
+                # normalise score
+                score = (matched_score + unmatched_penalty * (n_unmatched_exp + n_unmatched_sim))/n_total
 
                 # Mirrored version
                 dist_exp_to_sim_m, _ = sim_tree.query(exp3d_mirror,distance_upper_bound=distance_bound)
@@ -180,21 +184,29 @@ def vector_match(
                 n_unmatched_exp_m = np.sum(np.isinf(dist_exp_to_sim_m))
                 n_unmatched_sim_m = np.sum(np.isinf(dist_sim_to_exp_m))
                 matched_score_m = np.sum(dist_exp_to_sim_m[np.isfinite(dist_exp_to_sim_m)])
-                score_mirror = matched_score_m + unmatched_penalty * (n_unmatched_exp_m + n_unmatched_sim_m)
+                # normalise score
+                score_mirror = (matched_score_m + unmatched_penalty * (n_unmatched_exp_m + n_unmatched_sim_m))/n_total
 
                 # Check score and keep only best score for each sim_frame
                 if score < best_score:
                     best_score = score
-                    # Convert from rads to degs
-                    best_rotation= np.rad2deg(rot_idx * step_size_rad)
+                    # adjust rotations to make it fit with pyxems definitions
+                    angle_rad = (rot_idx * step_size_rad - np.pi/2) % (2*np.pi)
+                    angle_deg = int(np.rad2deg(angle_rad))
+                    if angle_deg > 180:
+                        angle_deg -= 360
+                    best_rotation = angle_deg
                     mirror = 1.0
 
-                # Check mirror score
                 if score_mirror < best_score:
                     best_score = score_mirror
-                    best_rotation= np.rad2deg(rot_idx * step_size_rad)
+                    # adjust rotations to make it fit with pyxems definitions
+                    angle_rad = (rot_idx * step_size_rad - np.pi/2) % (2*np.pi)
+                    angle_deg = int(np.rad2deg(angle_rad))
+                    if angle_deg > 180:
+                        angle_deg -= 360
+                    best_rotation = angle_deg
                     mirror = -1.0
-
             # Store results for each sim_frame
             # nx4-shape [frame, score, rotation, mirror-factor]
             results.append((sim_idx, best_score, best_rotation, mirror))
