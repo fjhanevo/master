@@ -119,6 +119,14 @@ def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.n
 
     return full_z_rotation(sim_filtered_3d,step_size)
 
+def wrap_degrees(angle_rad):
+    """
+    Helper function to fix the 90 deg shift to match Pyxems convention.
+    Wraps around if deg > 180. 
+    """
+    angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
+    return angle_deg - 360 if angle_deg > 180 else angle_deg
+
 def vector_match(
     experimental:np.ndarray, 
     simulated:np.ndarray, 
@@ -126,7 +134,7 @@ def vector_match(
     reciprocal_radius:float, 
     n_best:int,
     distance_bound = 0.05,
-    unmatched_penalty = 0.75
+    unmatched_penalty = 1.0 
 ) -> np.ndarray:
     """
     Oppdaterer denne senere.
@@ -190,22 +198,14 @@ def vector_match(
                 # Check score and keep only best score for each sim_frame
                 if score < best_score:
                     best_score = score
-                    # adjust rotations to make it fit with pyxems definitions
-                    angle_rad = (rot_idx * step_size_rad - np.pi/2) % (2*np.pi)
-                    angle_deg = int(np.rad2deg(angle_rad))
-                    if angle_deg > 180:
-                        angle_deg -= 360
-                    best_rotation = angle_deg
+                    ang = rot_idx * step_size_rad 
+                    best_rotation = wrap_degrees(ang) 
                     mirror = 1.0
 
                 if score_mirror < best_score:
                     best_score = score_mirror
-                    # adjust rotations to make it fit with pyxems definitions
-                    angle_rad = (rot_idx * step_size_rad - np.pi/2) % (2*np.pi)
-                    angle_deg = int(np.rad2deg(angle_rad))
-                    if angle_deg > 180:
-                        angle_deg -= 360
-                    best_rotation = angle_deg
+                    ang = rot_idx * step_size_rad 
+                    best_rotation = wrap_degrees(ang) 
                     mirror = -1.0
             # Store results for each sim_frame
             # nx4-shape [frame, score, rotation, mirror-factor]
@@ -217,3 +217,64 @@ def vector_match(
     # Return array of shape (len(experimental), n_best, 4)
     n_array = np.array(result_lst)
     return n_array
+
+def vector_match_sum_score(
+    experimental:np.ndarray, 
+    simulated:np.ndarray, 
+    step_size:float, 
+    reciprocal_radius:float, 
+    n_best:int
+) -> np.ndarray:
+    """
+    This sucks
+    """
+    result_lst = []
+    # Convert input degrees to radians
+    step_size_rad= np.deg2rad(step_size)
+    # precompute KD-trees for all rotated sims
+    precomputed_trees = [
+        [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+        for sim_frame in simulated
+    ]
+    # Loop through all experimental vectors
+    for exp_vec in tqdm(experimental):
+        # Transpose to 3D
+        exp3d = np.array(vector_to_3D(exp_vec,reciprocal_radius))
+        # Mirror exp3d over the YZ-plane
+        exp3d_mirror = exp3d * np.array([-1,1,1])
+        results = []
+        # Loop through each simulated frame
+        for sim_idx, trees in enumerate(precomputed_trees):
+            # just reset and declare these here to stop the lsp from bitching
+            best_score, best_rotation, mirror = float('inf'), 0, 0.
+            # Loop through each rotation of the simulated frame
+            for rot_idx, tree in enumerate(trees):
+                distances, _ = tree.query(exp3d)
+                # low score is good
+                score = np.sum(distances)
+                # mirror score
+                distances_mirror, _ = tree.query(exp3d_mirror)
+                score_mirror = np.sum(distances_mirror)
+
+                # Check score and keep only best score for each sim_frame
+                if score < best_score:
+                    best_score = score
+                    ang = rot_idx * step_size_rad
+                    best_rotation = wrap_degrees(ang)
+                    mirror = 1.0
+                # Check mirror score
+                if score_mirror < best_score:
+                    best_score = score
+                    ang = rot_idx * step_size_rad
+                    best_rotation = wrap_degrees(ang)
+                    mirror = -1.0
+            # Store results for each sim_frame
+            # nx4-shape [frame, score, rotation, mirror-factor]
+            results.append((sim_idx, best_score, best_rotation, mirror))
+        # Sort by ascending score and select n_best
+        results = sorted(results, key = lambda x : x[1])[:n_best]
+        result_lst.append(np.array(results))
+    # Return array of shape (len(experimental), n_best, 4)
+    n_array = np.array(result_lst)
+    return n_array
+ 
