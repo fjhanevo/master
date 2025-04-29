@@ -92,14 +92,9 @@ if __name__ == '__main__':
     
     reciprocal_radius = 1.35 # [Å^-1]
     step_size = 0.5    # Degrees
-    step_size = 100
     exp_frame = 56
     n_best = len(simulated) 
-    penalty = 1.0 
-    
-    n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-
+    # penalty = 1.0 
 
     ### FILE 1 ###
     # This is for vector_match()
