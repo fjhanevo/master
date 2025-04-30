@@ -12,7 +12,7 @@ params = {
 plt.rcParams.update(params)
 
 """
-Fil for plottefunksjoner
+File for plotting everything.
 """
 
 def plot_two_spheres(s1:np.ndarray,s2:np.ndarray,labels:tuple) -> None:
@@ -188,6 +188,9 @@ def plot_with_markers(results, file,i,j):
     plt.show()
 
 def plot_misorientation_hist(data):
+    """
+    Plots the misorientations as a histogram.
+    """
     loris = data.to_single_phase_orientations()
     loris_best = loris[:,0]
     loris_ang  = loris_best.angle_with_outer(loris_best, degrees=True)
@@ -198,6 +201,9 @@ def plot_misorientation_hist(data):
     plt.show()
 
 def plot_misorientation_scatter(data):
+    """
+    Plots the misorienations as scatter plot.
+    """
     loris = data.to_single_phase_orientations()
     loris_best = loris[:,0]
     loris_ang = loris_best.angle_with_outer(loris_best,degrees=True)
