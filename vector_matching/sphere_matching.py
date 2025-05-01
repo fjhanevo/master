@@ -125,7 +125,10 @@ def wrap_degrees(angle_rad):
     Wraps around if deg > 180. 
     """
     angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
-    return angle_deg - 360 if angle_deg > 180 else angle_deg
+    if angle_deg > 180:
+        angle_deg -= 360
+    # Add 180 deg to match pyxem conventions
+    return angle_deg + 180
 
 def vector_match(
     experimental: np.ndarray, 
@@ -156,7 +159,8 @@ def vector_match(
         # Transpose to 3D
         exp3d = np.array(vector_to_3D(exp_vec,reciprocal_radius))
         # Mirror exp3d over the YZ-plane
-        exp3d_mirror = exp3d * np.array([-1,1,1])
+        #NOTE: HEr også
+        # exp3d_mirror = exp3d * np.array([-1,1,1])
         results = []
 
         # Loop through each simulated frame
@@ -174,7 +178,8 @@ def vector_match(
                 
                 # Experimental tree
                 exp_tree = cKDTree(exp3d)
-                exp_tree_mirror = cKDTree(exp3d_mirror)
+                #NOTE: HEr også !
+                # exp_tree_mirror = cKDTree(exp3d_mirror)
 
                 # Original version
                 dist_exp_to_sim, _ = sim_tree.query(exp3d,distance_upper_bound=distance_bound)
@@ -186,15 +191,17 @@ def vector_match(
                 # normalise score
                 score = (matched_score + unmatched_penalty * (n_unmatched_exp + n_unmatched_sim))/n_total
 
-                # Mirrored version
-                dist_exp_to_sim_m, _ = sim_tree.query(exp3d_mirror,distance_upper_bound=distance_bound)
-                dist_sim_to_exp_m, _ = exp_tree_mirror.query(sim_points,distance_upper_bound=distance_bound)
+                #NOTE: Mirror er fjerna for nå!!
 
-                n_unmatched_exp_m = np.sum(np.isinf(dist_exp_to_sim_m))
-                n_unmatched_sim_m = np.sum(np.isinf(dist_sim_to_exp_m))
-                matched_score_m = np.sum(dist_exp_to_sim_m[np.isfinite(dist_exp_to_sim_m)])
-                # normalise score
-                score_mirror = (matched_score_m + unmatched_penalty * (n_unmatched_exp_m + n_unmatched_sim_m))/n_total
+                # Mirrored version
+                # dist_exp_to_sim_m, _ = sim_tree.query(exp3d_mirror,distance_upper_bound=distance_bound)
+                # dist_sim_to_exp_m, _ = exp_tree_mirror.query(sim_points,distance_upper_bound=distance_bound)
+                #
+                # n_unmatched_exp_m = np.sum(np.isinf(dist_exp_to_sim_m))
+                # n_unmatched_sim_m = np.sum(np.isinf(dist_sim_to_exp_m))
+                # matched_score_m = np.sum(dist_exp_to_sim_m[np.isfinite(dist_exp_to_sim_m)])
+                # # normalise score
+                # score_mirror = (matched_score_m + unmatched_penalty * (n_unmatched_exp_m + n_unmatched_sim_m))/n_total
 
                 # Check score and keep only best score for each sim_frame
                 if score < best_score:
@@ -203,11 +210,12 @@ def vector_match(
                     best_rotation = wrap_degrees(ang) 
                     mirror = 1.0
 
-                if score_mirror < best_score:
-                    best_score = score_mirror
-                    ang = rot_idx * step_size_rad 
-                    best_rotation = wrap_degrees(ang) 
-                    mirror = -1.0
+                #NOTE: OG her !
+                # if score_mirror < best_score:
+                #     best_score = score_mirror
+                #     ang = rot_idx * step_size_rad 
+                #     best_rotation = wrap_degrees(ang) 
+                #     mirror = -1.0
             # Store results for each sim_frame
             # nx4-shape [frame, score, rotation, mirror-factor]
             results.append((sim_idx, best_score, best_rotation, mirror))
