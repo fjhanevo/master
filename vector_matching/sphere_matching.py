@@ -125,7 +125,7 @@ def wrap_degrees(angle_rad):
     Wraps around if deg > 180. 
     """
     #NOTE: FJern 90 deg shift!
-    angle_deg = int(np.rad2deg(angle_rad - np.pi/2))
+    angle_deg = int(np.rad2deg(angle_rad))
     # angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
     # angle_deg = int(np.rad2deg((angle_rad) % (2*np.pi)))
     if angle_deg > 180:
