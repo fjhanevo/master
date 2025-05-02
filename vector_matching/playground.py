@@ -1,4 +1,3 @@
-import gc
 import numpy as np
 import plotting
 import sphere_matching as sm
@@ -95,42 +94,14 @@ if __name__ == '__main__':
     exp_frame = 56
     n_best = len(simulated) 
     # penalty = 1.0 
-
+   
     ### FILE 1 ###
     # This is for vector_match()
-    filename = 'ormap_step05deg_vector_match_normalised_wrapped.npy'
+    filename = '020525ormap_step05deg_vector_match_MIRROR_Y_wrap_degrees_v020525.npy'
     t1 = time()
     n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
     print(n_array.shape)
-    np.save(file=filename, arr=n_array, allow_pickle=True)
-    t2 = time()
-    print(f"Computation time {(t2-t1)/60} min")
-
-    # Free memory
-    del n_array
-    gc.collect()
-
-    ### FILE 2 ###
-    # this is for vector_match_ang_score()
-    filename = 'ormap_step05deg_vector_match_ang_score_normalised_wrapped.npy'
-    t1 = time()
-    n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-    np.save(file=filename, arr=n_array, allow_pickle=True)
-    t2 = time()
-    print(f"Computation time {(t2-t1)/60} min")
-
-    # Free memory
-    del n_array
-    gc.collect()
-
-    ### FILE 3 ###
-    # this is for vector_match_sum_score()
-    filename = 'ormap_step05deg_vector_match_sum_score_normalised_wrapped.npy'
-    t1 = time()
-    n_array = sm.vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-    np.save(file=filename, arr=n_array, allow_pickle=True)
+    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
     t2 = time()
     print(f"Computation time {(t2-t1)/60} min")
 
