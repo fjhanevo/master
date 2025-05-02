@@ -124,9 +124,7 @@ def wrap_degrees(angle_rad):
     Function to fix the 90 deg shift to match Pyxems convention.
     Wraps around if deg > 180. 
     """
-    #NOTE: FJern 90 deg shift!
-    angle_deg = int(np.rad2deg(angle_rad))
-    # angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
+    angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
     # angle_deg = int(np.rad2deg((angle_rad) % (2*np.pi)))
     if angle_deg > 180:
         angle_deg -= 360
