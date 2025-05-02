@@ -105,7 +105,7 @@ def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.n
         step_size: float
             angular increment 
         reciprocal_radius: float
-            reciprocal spae radius to account for
+            reciprocal space radius to account for
     Returns:
     -------
         full_z_rotation(): np.ndarray
@@ -124,7 +124,10 @@ def wrap_degrees(angle_rad):
     Function to fix the 90 deg shift to match Pyxems convention.
     Wraps around if deg > 180. 
     """
-    angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
+    #NOTE: FJern 90 deg shift!
+    angle_deg = int(np.rad2deg(angle_rad - np.pi/2))
+    # angle_deg = int(np.rad2deg((angle_rad - np.pi/2) % (2*np.pi)))
+    # angle_deg = int(np.rad2deg((angle_rad) % (2*np.pi)))
     if angle_deg > 180:
         angle_deg -= 360
     # Add 180 deg to match pyxem conventions
