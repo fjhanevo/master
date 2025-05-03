@@ -76,6 +76,35 @@ def exp_and_sim_sphere_plot(exp, sim, rot, reciprocal_radius,mirror,lbls:tuple):
 
     plotting.plot_spheres_with_axis_lims(sim_filtered3d_rot, exp3d,lbls)
 
+def angle_between_vectors(v1,v2):
+    v1_norm = np.linalg.norm(v1,axis=1)
+    v2_norm = np.linalg.norm(v2,axis=1)
+
+    dot_product = np.sum(v1 * v2, axis=1)
+
+    cos_angles = np.clip(dot_product / (v1_norm * v2_norm), -1.0, 1.0)
+
+    return np.rad2deg(np.arccos(cos_angles))
+
+
+def kabsch_algorithm(P: np.ndarray, Q: np.ndarray) -> np.ndarray:
+    P_centered = P - np.mean(P, axis=0)
+    Q_centered = Q - np.mean(Q, axis=0)
+
+    # covariance matrix
+    H = P_centered.T @ Q_centered
+
+    # SVD decomposition
+    U, _, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+
+    # handle reflection
+    if np.linalg.det(R) < 0:
+        Vt[2, :] *= -1
+        R = Vt.T @ U.T
+
+    return R
+
 if __name__ == '__main__':
     DIR_NPY = 'npy_files/'
     FILE_STRICT = 'peaks_all_LoG.npy'
@@ -95,15 +124,27 @@ if __name__ == '__main__':
     n_best = len(simulated) 
     # penalty = 1.0 
    
+
+    v1= sm.vector_to_3D(experimental[exp_frame],reciprocal_radius)
+    v2= v1* np.array([1,-1,1])
+    ang = kabsch_algorithm(v2, v1)
+    v2_aligned = v2 @ ang.T
+
+    angles = angle_between_vectors(v1,v2_aligned)
+    print(np.mean(angles))
+    lbls = ('org','mirror')
+    # plotting.plot_two_spheres(v1, v2,lbls)
+    # v2 = np.array([sm.apply_z_rotation(v,ang) for v in v2])
+    # plotting.plot_two_spheres(v1, v2_aligned,lbls)
     ### FILE 1 ###
     # This is for vector_match()
-    filename = '020525ormap_step05deg_vector_match_MIRROR_Y_wrap_degrees_v020525.npy'
-    t1 = time()
-    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
-    t2 = time()
-    print(f"Computation time {(t2-t1)/60} min")
+    # filename = '020525ormap_step05deg_vector_match_MIRROR_Y_wrap_degrees_v020525.npy'
+    # t1 = time()
+    # n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
+    # print(n_array.shape)
+    # np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    # t2 = time()
+    # print(f"Computation time {(t2-t1)/60} min")
 
     # simtest= [simulated[4095]]
 
