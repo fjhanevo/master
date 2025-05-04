@@ -133,9 +133,9 @@ if __name__ == '__main__':
     angles = angle_between_vectors(v1,v2_aligned)
     print(np.mean(angles))
     lbls = ('org','mirror')
-    # plotting.plot_two_spheres(v1, v2,lbls)
-    # v2 = np.array([sm.apply_z_rotation(v,ang) for v in v2])
-    # plotting.plot_two_spheres(v1, v2_aligned,lbls)
+    plotting.plot_two_spheres(v1, v2,lbls)
+    v2 = np.array([sm.apply_z_rotation(v,np.mean(angles)) for v in v2])
+    plotting.plot_two_spheres(v1, v2_aligned,lbls)
     ### FILE 1 ###
     # This is for vector_match()
     # filename = '020525ormap_step05deg_vector_match_MIRROR_Y_wrap_degrees_v020525.npy'
