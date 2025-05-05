@@ -119,6 +119,7 @@ def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.n
 
     return full_z_rotation(sim_filtered_3d,step_size)
 
+#NOTE: Add argument for mirror
 def wrap_degrees(angle_rad):
     """
     Function to fix the 90 deg shift to match Pyxems convention.
