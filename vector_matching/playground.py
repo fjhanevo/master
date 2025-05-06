@@ -1,3 +1,4 @@
+import gc
 import numpy as np
 import plotting
 import sphere_matching as sm
@@ -123,29 +124,54 @@ if __name__ == '__main__':
     exp_frame = 56
     n_best = len(simulated) 
     # penalty = 1.0 
-   
-
-    v1= sm.vector_to_3D(experimental[exp_frame],reciprocal_radius)
-    v2= v1* np.array([1,-1,1])
-    ang = kabsch_algorithm(v2, v1)
-    v2_aligned = v2 @ ang.T
-
-    angles = angle_between_vectors(v1,v2_aligned)
-    print(np.mean(angles))
-    lbls = ('org','mirror')
-    plotting.plot_two_spheres(v1, v2,lbls)
-    v2 = np.array([sm.apply_z_rotation(v,np.mean(angles)) for v in v2])
-    plotting.plot_two_spheres(v1, v2_aligned,lbls)
     ### FILE 1 ###
-    # This is for vector_match()
-    # filename = '020525ormap_step05deg_vector_match_MIRROR_Y_wrap_degrees_v020525.npy'
-    # t1 = time()
-    # n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
-    # print(n_array.shape)
-    # np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
-    # t2 = time()
-    # print(f"Computation time {(t2-t1)/60} min")
+    filename = '060525ormap_step05deg_vector_match_ang_score_NO_MIRROR_wrap_degrees_v060525.npy'
+    t1 = time()
+    n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
+    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    t2 = time()
+    print(f"Computation time {(t2-t1)/60} min")
 
+    # Free memory
+    del n_array
+    gc.collect()
+    ### FILE 2 ###
+    # This is for vector_match()
+    filename = '060525ormap_step05deg_vector_match_NO_MIRROR_wrap_degrees_v060525.npy'
+    t1 = time()
+    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
+    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    t2 = time()
+    print(f"Computation time {(t2-t1)/60} min")
+
+
+    # Free memory
+    del n_array
+    gc.collect()
+    ### FILE 3 ##   
+    filename = '060525ormap_step05deg_vector_match_sum_score_NO_MIRROR_wrap_degrees_v060525.npy'
+    t1 = time()
+    n_array = sm.vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    print(n_array.shape)
+    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    t2 = time()
+    print(f"Computation time {(t2-t1)/60} min")
+
+  
+
+    # v1= sm.vector_to_3D(experimental[exp_frame],reciprocal_radius)
+    # v2= v1* np.array([1,-1,1])
+    # ang = kabsch_algorithm(v2, v1)
+    # v2_aligned = v2 @ ang.T
+
+    # angles = angle_between_vectors(v1,v2_aligned)
+    # print(np.mean(angles))
+    # lbls = ('org','mirror')
+    # plotting.plot_two_spheres(v1, v2,lbls)
+    # v2 = np.array([sm.apply_z_rotation(v,np.mean(angles)) for v in v2])
+    # plotting.plot_two_spheres(v1, v2_aligned,lbls)
     # simtest= [simulated[4095]]
 
     #### KEEP FOR LATER ####
