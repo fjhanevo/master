@@ -246,3 +246,33 @@ def plot_crystal_map(results,phase):
     plt.show()
 
 
+def plot_compare_misorientation_scatter(data1, data2, data3, lbls:tuple, clrs:tuple):
+    """
+    Plots the misorientations as scatter plots for multiple datasets.
+    """
+    datasets = [data1, data2, data3]
+    c1, c2, c3 = clrs
+    colors = [c1,c2,c3]
+    l1, l2, l3 = lbls 
+    labels = [l1, l2, l3] 
+
+    plt.figure(figsize=(8,6))
+
+    for data, color, label in zip(datasets, colors, labels):
+        loris = data.to_single_phase_orientations()
+        loris_best = loris[:, 0]
+        loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+
+        for i in range(len(loris_ang) - 1):
+            plt.scatter(i, loris_ang[i, i + 1], s=34, c=color, label=label if i == 0 else "")
+
+    plt.axhline(y=1, color='red', label=r'1$\degree$', linestyle='dashed')
+    plt.grid(True)
+    plt.ylabel(r'Misorientation$\degree$', fontsize=26)
+    plt.xlabel('Tilt Step', fontsize=26)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
+    plt.legend(fontsize=18, loc='center left')
+    plt.tight_layout()
+    plt.show()
+
