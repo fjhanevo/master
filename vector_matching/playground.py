@@ -119,45 +119,46 @@ if __name__ == '__main__':
     experimental = sm.fast_polar(experimental)
     simulated = np.load(DIR_NPY+FILE_SIM,allow_pickle=True)
     
+    print(simulated.shape)
     reciprocal_radius = 1.35 # [Å^-1]
     step_size = 0.5    # Degrees
     exp_frame = 56
     n_best = len(simulated) 
     # penalty = 1.0 
     ### FILE 1 ###
-    filename = '060525ormap_step05deg_vector_match_ang_score_NO_MIRROR_wrap_degrees_v060525.npy'
-    t1 = time()
-    n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
-    t2 = time()
-    print(f"Computation time {(t2-t1)/60} min")
+    # filename = '060525ormap_step05deg_vector_match_ang_score_NO_MIRROR_wrap_degrees_v060525.npy'
+    # t1 = time()
+    # n_array = sm.vector_match_ang_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    # print(n_array.shape)
+    # np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    # t2 = time()
+    # print(f"Computation time {(t2-t1)/60} min")
 
     # Free memory
-    del n_array
-    gc.collect()
+    # del n_array
+    # gc.collect()
     ### FILE 2 ###
     # This is for vector_match()
-    filename = '060525ormap_step05deg_vector_match_NO_MIRROR_wrap_degrees_v060525.npy'
-    t1 = time()
-    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
-    t2 = time()
-    print(f"Computation time {(t2-t1)/60} min")
+    # filename = '060525ormap_step05deg_vector_match_NO_MIRROR_wrap_degrees_v060525.npy'
+    # t1 = time()
+    # n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
+    # print(n_array.shape)
+    # np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    # t2 = time()
+    # print(f"Computation time {(t2-t1)/60} min")
 
 
     # Free memory
-    del n_array
-    gc.collect()
+    # del n_array
+    # gc.collect()
     ### FILE 3 ##   
-    filename = '060525ormap_step05deg_vector_match_sum_score_NO_MIRROR_wrap_degrees_v060525.npy'
-    t1 = time()
-    n_array = sm.vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
-    print(n_array.shape)
-    np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
-    t2 = time()
-    print(f"Computation time {(t2-t1)/60} min")
+    # filename = '060525ormap_step05deg_vector_match_sum_score_NO_MIRROR_wrap_degrees_v060525.npy'
+    # t1 = time()
+    # n_array = sm.vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    # print(n_array.shape)
+    # np.save(file=DIR_NPY+filename, arr=n_array, allow_pickle=True)
+    # t2 = time()
+    # print(f"Computation time {(t2-t1)/60} min")
 
   
 
