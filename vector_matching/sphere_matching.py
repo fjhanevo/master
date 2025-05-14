@@ -119,17 +119,36 @@ def filter_sim(sim:np.ndarray, step_size:float, reciprocal_radius:float) -> np.n
 
     return full_z_rotation(sim_filtered_3d,step_size)
 
-#NOTE: Add argument for mirror
-def wrap_degrees(angle_rad):
+def wrap_degrees(angle_rad: float, mirror: int) -> int:
     """
-    Function to fix the 90 deg shift to match Pyxems convention.
-    Wraps around if deg > 180.
+    Converts radian rotation into degrees, re-align reference axis
+    with Pyxems conventions. Wraps it to the range (-180, 180) deg, 
+    with counter-clockwise rotation
+    Parms:
+    -----
+        angle_rad: float
+            the in-plane angle found from VM in radians
+        mirror: int
+            mirror factor from VM, either 1 or -1 depending on if the 
+            pattern was mirrored. Used to reverse rotation if mirrored
+            (mirror == -1)
+    Returns:
+    -------
+        angle_deg: int 
+            the in-plane rotation in degrees and changed to match Pyxems conventions.
+            if mirrored, returns the reverse rotation
+            if not mirrored, add 180 degs to match pyxem. 
     """
     angle_deg = int(np.rad2deg((angle_rad-np.pi/2)  % (2*np.pi)))
     if angle_deg > 180:
         angle_deg -= 360
+    if mirror < 0:
+        # reverse rotation when mirrored
+        angle_deg = -angle_deg
+        return angle_deg
     # Add 180 deg to match pyxem conventions
-    return angle_deg + 180
+    else: 
+        return angle_deg + 180
 
 def vector_match(
     experimental: np.ndarray, 
@@ -207,15 +226,15 @@ def vector_match(
                 if score < best_score:
                     best_score = score
                     ang = rot_idx * step_size_rad 
-                    best_rotation = wrap_degrees(ang) 
                     mirror = 1.0
+                    best_rotation = wrap_degrees(ang,mirror) 
 
                 #NOTE: Mirror term 
                 if score_mirror < best_score:
                     best_score = score_mirror
                     ang = rot_idx * step_size_rad 
-                    best_rotation = wrap_degrees(ang) 
-                    mirror = 1.0
+                    mirror = -1.0
+                    best_rotation = wrap_degrees(ang,mirror) 
             # Store results for each sim_frame
             # nx4-shape [frame, score, in-plane, mirror-factor]
             results.append((sim_idx, best_score, best_rotation, mirror))
