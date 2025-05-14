@@ -69,14 +69,6 @@ def apply_z_rotation(vector:np.ndarray,theta:float) -> np.ndarray:
                     [0,0,1]])
     return vector @ rot.T
 
-#NOTE: Will remove this and deal with intensities in a different way
-def z_rotation_intensity(vector:np.ndarray, theta:float) -> np.ndarray:
-    # pop out intensities
-    temp_vector = np.stack([vector[...,0], vector[...,1], vector[...,2]], axis=-1)
-    rot_vector = np.array(apply_z_rotation(temp_vector, theta))
-    # pop intensities back in
-    return np.stack([rot_vector[...,0], rot_vector[...,1], rot_vector[...,2], vector[...,3]], axis=-1)
-
 def full_z_rotation(vector:np.ndarray, step_size:float) -> np.ndarray:
     """
     Helper function to add a rotation dimension.
