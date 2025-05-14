@@ -150,7 +150,7 @@ def wrap_degrees(angle_rad: float, mirror: int) -> int:
     else: 
         return angle_deg + 180
 
-def vector_match(
+def vector_match_kd(
     experimental: np.ndarray, 
     simulated: np.ndarray, 
     step_size: float, 
@@ -443,3 +443,31 @@ def vector_match_sum_score(
     # Return array of shape (len(experimental), n_best, 4)
     return np.array(n_array)
  
+
+def vector_match(
+    experimental: np.ndarray,
+    simulated: np.ndarray,
+    step_size: float,
+    reciprocal_radius: float,
+    n_best: int,
+    method: int = 0, 
+    distance_bound: float = 0.05,
+    angle_thresh_rad: float = 0.05
+) -> np.ndarray:
+    """
+    Just a central function to choose method
+    method == 1: vector_match_kd,
+    method == 2: vector_match_ang_score,
+    method == 3: vector_match_sum_score,
+    """
+
+    n_array = np.array([])
+    if method == 1:
+        n_array = vector_match_kd(experimental, simulated, step_size,reciprocal_radius,n_best, distance_bound)
+    elif method == 2:
+        n_array = vector_match_ang_score(experimental, simulated, step_size,reciprocal_radius,n_best, angle_thresh_rad)
+    elif method == 3:
+        n_array = vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    else:
+        print("Invalid input for method: {}", method)
+    return n_array
