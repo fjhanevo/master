@@ -276,3 +276,32 @@ def plot_compare_misorientation_scatter(data1, data2, data3, lbls:tuple, clrs:tu
     plt.tight_layout()
     plt.show()
 
+#NOTE: FIX DENNE!!!
+def plot_ipf_all(data, phase, orientation, cmap:str) -> None:
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
+
+    all_orientations = []
+    all_correlations = []
+
+    num_frames = data.axes_manager.navigation_shape[0]
+    for idx in range(num_frames):
+        correlations = data.inav[idx].data[:,1]
+        tm_indices = (data.inav[idx].data[:,0]).astype('int16')
+        orientations_frame = orientation[tm_indices]
+        all_orientations.extend(orientations_frame)
+        all_correlations.extend(correlations)
+
+    # Plot all candidates
+    ax.scatter(all_orientations, c=all_correlations, cmap=cmap)
+
+    loris = data.to_single_phase_orientations()
+    best_orientations = [loris[i,0] for i in range(num_frames)]
+    ax.scatter(best_orientations, c='red', marker='o', s=100)
+    
+
+
+    plt.show()
+
