@@ -105,7 +105,7 @@ if __name__ == '__main__':
         reciprocal_radius,
         n_best, 
         method=1,
-        filename=filename,
+        filename=DIR_NPY+filename,
     )
 
     filename = '140525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy'
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         reciprocal_radius,
         n_best, 
         method=2,
-        filename=filename,
+        filename=DIR_NPY+filename,
     )
     filename = '140525_vector_match_sum_score_step05deg_fixedmirror.npy'
     create_and_save_dataset(
@@ -126,5 +126,5 @@ if __name__ == '__main__':
         reciprocal_radius,
         n_best, 
         method=3,
-        filename=filename,
+        filename=DIR_NPY+filename,
     )
