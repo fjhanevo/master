@@ -1,3 +1,4 @@
+import gc
 import numpy as np
 import plotting
 import sphere_matching as sm
@@ -32,11 +33,9 @@ def make_rotating_sphere_gif(vec1:np.ndarray,vec2:np.ndarray, reciprocal_radius:
 
     print(f"Computation time: {(t2-t1)/60} min")
 
-def match_one_frame(exp, sim, ang_step, reciprocal_radius, n_best):
+def match_one_frame(exp, sim, ang_step, reciprocal_radius, n_best, method):
     t1 = time()
-    # n_array = sm.vector_match_one_frame(exp,sim,ang_step,reciprocal_radius, n_best)
-    # n_array = sm.vm_one_frame_take_two(exp,sim,ang_step,reciprocal_radius, n_best_candidates=n_best)
-    n_array = sm.vector_match(exp,sim,ang_step,reciprocal_radius,n_best)
+    n_array = sm.vector_match(exp,sim,ang_step,reciprocal_radius,n_best, method)
     print(n_array.shape)
     t2 = time()
     n_best = n_array[0][0]
@@ -49,19 +48,23 @@ def match_one_frame(exp, sim, ang_step, reciprocal_radius, n_best):
     return int(frame), score, rotation, mirror
 
 def create_and_save_dataset(
-    experimental:np.ndarray, 
-    simulated:np.ndarray, 
-    step_size:float, 
-    reciprocal_radius:float, 
-    n_best:int,
+    experimental: np.ndarray, 
+    simulated: np.ndarray, 
+    step_size: float, 
+    reciprocal_radius: float, 
+    n_best: int,
+    method: int, 
     filename:str
 ) -> None:
     t1 = time()
-    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best)
+    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best, method)
     print(n_array.shape)
     np.save(file=filename, arr=n_array, allow_pickle=True)
     t2 = time()
     print(f"Computation time {(t2-t1)/60} min")
+    # Free memory
+    del n_array
+    gc.collect()
 
 def exp_and_sim_sphere_plot(exp, sim, rot, reciprocal_radius,mirror,lbls:tuple):
     exp3d = sm.vector_to_3D(exp,reciprocal_radius)
@@ -93,3 +96,35 @@ if __name__ == '__main__':
     exp_frame = 56
     n_best = len(simulated) 
 
+    ### CREATE NEW FILES ### 
+    filename = '140525_vector_match_kd_step05deg_distbound005_fixedmirror.npy'
+    create_and_save_dataset(
+        experimental,
+        simulated, 
+        step_size,
+        reciprocal_radius,
+        n_best, 
+        method=1,
+        filename=filename,
+    )
+
+    filename = '140525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy'
+    create_and_save_dataset(
+        experimental,
+        simulated, 
+        step_size,
+        reciprocal_radius,
+        n_best, 
+        method=2,
+        filename=filename,
+    )
+    filename = '140525_vector_match_sum_score_step05deg_fixedmirror.npy'
+    create_and_save_dataset(
+        experimental,
+        simulated, 
+        step_size,
+        reciprocal_radius,
+        n_best, 
+        method=3,
+        filename=filename,
+    )
