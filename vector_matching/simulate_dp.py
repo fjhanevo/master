@@ -15,8 +15,9 @@ if __name__ == '__main__':
     center = image_size // 2
 
     # Load data
-    FILE = 'npy_files/LF_r_theta_sim.npy'
-    polar_data = np.load(FILE, allow_pickle=True)
+    IN_FILE = 'npy_files/sim_r_theta_intensity.npy'
+    OUT_FILE = 'npy_files/150525_sim_dp_intensity_for_TM.npy'
+    polar_data = np.load(IN_FILE, allow_pickle=True)
     num_patterns = polar_data.shape[0]
 
     # Estimate scaling factor
@@ -34,8 +35,13 @@ if __name__ == '__main__':
     data_stack = np.zeros((num_patterns, image_size, image_size),dtype=np.float32)
 
     for i in range(num_patterns):
-        r_theta = polar_data[i]
-        r, theta = r_theta[:, 0], r_theta[:, 1]
+        r_theta_intensity = polar_data[i]
+        r, theta = r_theta_intensity[:, 0], r_theta_intensity[:, 1]
+
+        if r_theta_intensity.shape[1] == 3:
+            intensity = r_theta_intensity[:, 2]
+        else:
+            intensity = np.ones_like(r)
 
         # remove padding
         mask = ~((r==0) & (theta == 0))
@@ -48,11 +54,11 @@ if __name__ == '__main__':
         y_px = (y * scale_factor + center).astype(int)
 
         # Add Gaussians
-        for xp, yp in zip(x_px, y_px):
+        for xp, yp, amp in zip(x_px, y_px,intensity):
             xs = slice(xp - kernel_radius, xp + kernel_radius + 1)
             ys = slice(yp - kernel_radius, yp + kernel_radius + 1)
             if 0 <= xs.start and xs.stop <= image_size and 0 <= ys.start and ys.stop <= image_size:
-                data_stack[i, ys, xs] += gaussian_kernel
+                data_stack[i, ys, xs] += amp * gaussian_kernel
 
-    np.save('npy_files/150525_simulated_dp_for_TM.npy', arr=data_stack, allow_pickle=True)
+    np.save(OUT_FILE, arr=data_stack, allow_pickle=True)
             
