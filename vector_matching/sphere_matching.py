@@ -2,6 +2,8 @@ import pyxem as pxm
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
+from numba import njit, prange
+import heapq
 
 """
 Fil for sphere matching!:)
@@ -119,6 +121,7 @@ def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float) -> n
 
     return full_z_rotation(sim_filtered_3d,step_size)
 
+@njit
 def wrap_degrees(angle_rad: float, mirror: int) -> int:
     """
     Converts radian rotation into degrees, re-align reference axis
@@ -398,7 +401,7 @@ def vector_match_sum_score(
         n_array: np.ndarray:
             A nx4-shaped array of [frame, score, in-plane, mirror-factor]
     """
-    n_array = []
+    n_array = [] 
     # Convert input degrees to radians
     step_size_rad= np.deg2rad(step_size)
     # precompute KD-trees for all rotated sims
@@ -409,7 +412,7 @@ def vector_match_sum_score(
     # Loop through all experimental vectors
     for exp_vec in tqdm(experimental):
         # Transpose to 3D
-        exp3d = np.array(vector_to_3D(exp_vec,reciprocal_radius))
+        exp3d = vector_to_3D(exp_vec,reciprocal_radius)
         # Mirror exp3d over the XZ-plane
         exp3d_mirror = exp3d * np.array([1,-1,1])
         results = []
@@ -429,7 +432,6 @@ def vector_match_sum_score(
                 # mirror score
                 distances_mirror, _ = sim_tree.query(exp3d_mirror, distance_upper_bound=distance_bound)
                 score_mirror = np.sum(distances_mirror)/n_total
-
                 # Check score and keep only best score for each sim_frame
                 if score < best_score:
                     best_score = score
@@ -452,6 +454,93 @@ def vector_match_sum_score(
     return np.array(n_array)
  
 
+@njit
+def compute_best_score(
+    exp3d, 
+    exp3d_mirror,
+    sim_trees, 
+    step_size_rad,
+    distance_bound,
+):
+    best_score, best_rotation, mirror = np.inf, 0.0, 0
+
+    for rot_idx in range(len(sim_trees.data)):
+        sim_tree_data = sim_trees[rot_idx].data
+
+        n_total = len(exp3d) + len(sim_tree_data)
+
+        score, score_mirror = 0.0, 0.0
+
+        # Manual KD-trees wow!
+        for i in range(len(exp3d)):
+            d_min, d_min_mirror = distance_bound, distance_bound
+
+            for j in range(len(sim_tree_data)):
+                d = np.linalg.norm(exp3d[i] - sim_tree_data[j])
+                d_mirror = np.linalg.norm(exp3d_mirror[i] - sim_tree_data[j])
+                if d < d_min:
+                    d_min = d
+                if d_mirror < d_min_mirror:
+                    d_min_mirror = d_mirror
+            score += d_min
+            score_mirror += d_min_mirror
+
+        score /= n_total
+        score_mirror /= n_total
+
+        if score < best_score:
+            best_score = score
+            mirror = 1
+            best_rotation = wrap_degrees(rot_idx * step_size_rad, mirror)
+        if score_mirror < best_score:
+            best_score = score
+            mirror = 1
+            best_rotation = wrap_degrees(rot_idx * step_size_rad, mirror)
+
+    return best_score, best_rotation, mirror
+
+def vector_match_faf(
+    experimental: np.ndarray,
+    simulated: np.ndarray,
+    step_size: float,
+    reciprocal_radius: float,
+    n_best: int,
+    distance_bound: float = 0.05,
+) -> np.ndarray:
+    """
+    DOCSTRING!
+    """
+    n_array = []
+
+    # Precomput-sim trees for faster runtime
+    step_size_rad = np.deg2rad(step_size)
+    precomputed_trees = [
+        [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+        for sim_frame in simulated
+    ]
+
+    # Loop through all experimental vectors
+    for exp_vec in tqdm(experimental):
+        # Transpose to 3D
+        exp3d = vector_to_3D(exp_vec,reciprocal_radius)
+        # Mirror exp3d over the XZ-plane
+        exp3d_mirror = exp3d * np.array([1,-1,1])
+        results = []
+
+        for sim_idx, sim_tree in enumerate(precomputed_trees):
+            best_score, best_rotation, mirror = compute_best_score(
+                exp3d, exp3d_mirror, sim_tree, step_size_rad, distance_bound
+            ) 
+            results.append((sim_idx, best_score, best_rotation, mirror))
+
+        n_array.append(np.array(heapq.nsmallest(n_best, results, key = lambda x: x[1])))
+    return np.array(n_array)
+
+
+
+
+
+    
 def vector_match(
     experimental: np.ndarray,
     simulated: np.ndarray,
@@ -476,6 +565,8 @@ def vector_match(
         n_array = vector_match_ang_score(experimental, simulated, step_size,reciprocal_radius,n_best, angle_thresh_rad)
     elif method == 3:
         n_array = vector_match_sum_score(experimental, simulated, step_size, reciprocal_radius, n_best)
+    elif method == 4:
+        n_array = vector_match_faf(experimental, simulated, step_size,reciprocal_radius,n_best, distance_bound)
     else:
         print("Invalid input for method: {}", method)
     return n_array
