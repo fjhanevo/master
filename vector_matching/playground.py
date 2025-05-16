@@ -78,6 +78,32 @@ def exp_and_sim_sphere_plot(exp, sim, rot, reciprocal_radius,mirror,lbls:tuple):
 
     plotting.plot_spheres_with_axis_lims(sim_filtered3d_rot, exp3d,lbls)
 
+def dataset_for_algorithm_accuracy(simulated, step_size, reciprocal_radius,n_best, filename):
+    # Filter part of sim that is going to be matched
+    sim_filtered = []
+    for idx in range(simulated.shape[0]):
+        r_theta = simulated[idx]
+
+        # mask out zeroes
+        mask = ~np.all(r_theta == 0, axis = 1)
+
+        # apply mask
+        r_theta_masked = r_theta[mask]
+
+        sim_filtered.append(r_theta_masked)
+
+    sim_filtered = np.array(sim_filtered, dtype=object)
+
+    create_and_save_dataset(
+        experimental=sim_filtered, 
+        simulated=simulated, 
+        step_size=step_size,
+        reciprocal_radius=reciprocal_radius,
+        n_best=n_best,
+        method=1,
+        filename=filename,
+    )
+
 if __name__ == '__main__':
     DIR_NPY = 'npy_files/'
     FILE_STRICT = 'peaks_all_LoG.npy'
@@ -93,32 +119,11 @@ if __name__ == '__main__':
     
     reciprocal_radius = 1.35 # [Å^-1]
     step_size = 0.5    # Degrees
-    exp_frame = 56
+    # exp_frame = 56
     n_best = len(simulated) 
 
     ### CREATE NEW FILES ### 
-    filename = '140525_vector_match_kd_step05deg_distbound005_fixedmirror.npy'
-    create_and_save_dataset(
-        experimental,
-        simulated, 
-        step_size,
-        reciprocal_radius,
-        n_best, 
-        method=1,
-        filename=DIR_NPY+filename,
-    )
-
-    filename = '140525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy'
-    create_and_save_dataset(
-        experimental,
-        simulated, 
-        step_size,
-        reciprocal_radius,
-        n_best, 
-        method=2,
-        filename=DIR_NPY+filename,
-    )
-    filename = '140525_vector_match_sum_score_step05deg_fixedmirror.npy'
+    filename = '160525_vector_match_sum_score_step05deg_fixedmirror.npy'
     create_and_save_dataset(
         experimental,
         simulated, 
@@ -127,4 +132,13 @@ if __name__ == '__main__':
         n_best, 
         method=3,
         filename=DIR_NPY+filename,
+    )
+
+    filename = '160525_VM_matched_with_itself_step1deg_vector_match_kd_method.npy'
+    dataset_for_algorithm_accuracy(
+        simulated=simulated,
+        step_size=1,
+        reciprocal_radius=reciprocal_radius,
+        n_best=n_best,
+        filename=DIR_NPY+filename
     )
