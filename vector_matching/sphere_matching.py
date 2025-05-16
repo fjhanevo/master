@@ -218,8 +218,8 @@ def vector_match_kd(
                 exp_tree_mirror = cKDTree(exp3d_mirror)
 
                 # Original version
-                dist_exp_to_sim, _ = sim_tree.query(exp3d,distance_upper_bound=distance_bound)
-                dist_sim_to_exp, _ =exp_tree.query(sim_points,distance_upper_bound=distance_bound)
+                dist_exp_to_sim, _ = sim_tree.query(exp3d, distance_upper_bound=distance_bound)
+                dist_sim_to_exp, _ =exp_tree.query(sim_points, distance_upper_bound=distance_bound)
 
                 n_unmatched_exp = np.sum(np.isinf(dist_exp_to_sim))
                 n_unmatched_sim = np.sum(np.isinf(dist_sim_to_exp))
@@ -372,7 +372,8 @@ def vector_match_sum_score(
     simulated: np.ndarray, 
     step_size: float, 
     reciprocal_radius: float, 
-    n_best: int
+    n_best: int,
+    distance_bound: float = 0.05
 ) -> np.ndarray:
     """
     Vector matching method based on KD-trees, takes only nearest-neighbour distances
@@ -388,6 +389,9 @@ def vector_match_sum_score(
         reciprocal_radius: float: 
             The reciprocal radius used to project vector points onto sphere with this radius
         n_best: int: Number of n best matches to keep
+        distance_bound: float: 
+            Distance threshold to account for when matching points. If a point is 
+            within the threshold of another point, their nearest-neighbour distance is calculated.
 
     Returns:
     ---------
@@ -414,13 +418,17 @@ def vector_match_sum_score(
             # just reset and declare these here to stop the lsp from bitching
             best_score, best_rotation, mirror = float('inf'), 0, 0
             # Loop through each rotation of the simulated frame
-            for rot_idx, tree in enumerate(trees):
-                distances, _ = tree.query(exp3d)
+            for rot_idx, sim_tree in enumerate(trees):
+
+                sim_points = sim_tree.data
+
+                n_total = len(exp3d) + len(sim_points)
+                distances, _ = sim_tree.query(exp3d, distance_upper_bound=distance_bound)
                 # low score is good
-                score = np.sum(distances)
+                score = np.sum(distances)/n_total
                 # mirror score
-                distances_mirror, _ = tree.query(exp3d_mirror)
-                score_mirror = np.sum(distances_mirror)
+                distances_mirror, _ = sim_tree.query(exp3d_mirror, distance_upper_bound=distance_bound)
+                score_mirror = np.sum(distances_mirror)/n_total
 
                 # Check score and keep only best score for each sim_frame
                 if score < best_score:
