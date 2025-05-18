@@ -2,8 +2,9 @@ import pyxem as pxm
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
-from numba import njit, prange
+from numba import njit
 import heapq
+from joblib import Parallel, delayed
 
 """
 Fil for sphere matching!:)
@@ -453,7 +454,7 @@ def vector_match_sum_score(
     return np.array(n_array)
  
 
-# @njit
+@njit
 def compute_best_score(
     exp3d, 
     exp3d_mirror,
@@ -463,8 +464,8 @@ def compute_best_score(
 ):
     best_score, best_rotation, mirror = np.inf, 0.0, 0
 
-    for rot_idx in range(len(sim_trees.data)):
-        sim_tree_data = sim_trees[rot_idx].data
+    for rot_idx in range(len(sim_trees)):
+        sim_tree_data = sim_trees[rot_idx]
 
         n_total = len(exp3d) + len(sim_tree_data)
 
@@ -505,36 +506,39 @@ def vector_match_faf(
     reciprocal_radius: float,
     n_best: int,
     distance_bound: float = 0.05,
+    n_jobs: int = -1
 ) -> np.ndarray:
     """
     DOCSTRING!
     """
     n_array = []
 
-    # Precomput-sim trees for faster runtime
+    # Precompute-sim trees for faster runtime
     step_size_rad = np.deg2rad(step_size)
-    precomputed_trees = [
-        [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+
+    precomputed_sim_data = [
+        [np.array(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
         for sim_frame in simulated
     ]
-
     # Loop through all experimental vectors
-    for exp_vec in tqdm(experimental):
+    def process_one_exp_vec(exp_vec):
         # Transpose to 3D
         exp3d = vector_to_3D(exp_vec,reciprocal_radius)
         # Mirror exp3d over the XZ-plane
         exp3d_mirror = exp3d * np.array([1,-1,1])
         results = []
 
-        for sim_idx, sim_tree in enumerate(precomputed_trees):
+        for sim_idx, sim_data_rotation in enumerate(precomputed_sim_data):
             best_score, best_rotation, mirror = compute_best_score(
-                exp3d, exp3d_mirror, sim_tree, step_size_rad, distance_bound
+                exp3d, exp3d_mirror, sim_data_rotation, step_size_rad, distance_bound
             ) 
             results.append((sim_idx, best_score, best_rotation, mirror))
 
-        n_array.append(np.array(heapq.nsmallest(n_best, results, key = lambda x: x[1])))
-    return np.array(n_array)
+        return np.array(heapq.nsmallest(n_best, results, key = lambda x: x[1]))
 
+    results = Parallel(n_jobs=n_jobs)(delayed(process_one_exp_vec)(exp_vec) for exp_vec in experimental)
+
+    return np.array(results)
 
 
 
