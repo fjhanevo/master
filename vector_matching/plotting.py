@@ -197,8 +197,8 @@ def plot_misorientation_hist(data):
     loris_ang  = loris_best.angle_with_outer(loris_best, degrees=True)
     plt.figure()
     plt.hist(loris_ang.flatten(), bins=60)
-    plt.xlabel('Degrees')
-    plt.ylabel('Count')
+    plt.xlabel(r'Misorientation$\degree$',fontsize='26')
+    plt.ylabel('Count', fontsize=26)
     plt.show()
 
 def plot_misorientation_scatter(data):
@@ -273,13 +273,11 @@ def plot_compare_misorientation_scatter(data1, data2, data3, lbls:tuple, clrs:tu
     plt.xlabel('Tilt Step', fontsize=26)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
-    plt.legend(fontsize=18, loc='center left')
+    plt.legend(fontsize=18, loc='upper right')
     plt.tight_layout()
     plt.show()
 
 def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
-
-
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
@@ -289,7 +287,24 @@ def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
         correlations = data.inav[idx].data[:,1]
         loris_best = loris[idx, 0]
         ax.scatter(loris_best, c=correlations, cmap=cmap)
-
+    plt.tight_layout()
     plt.show()
+
+#TODO: Fiks denne, funker ikke;(
+def plot_misorientations_on_ipf(data,phase, cmap:str) -> None:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
+
+    loris = data.to_single_phase_orientations()
+    num_frames = data.axes_manager.navigation_shape[0]
+    for idx in range(num_frames):
+        correlations = data.inav[idx].data[:,1]
+        loris_best = loris[idx, 0]
+        loris_ang = loris_best.angle_with_outer(loris_best,degrees=True)
+        #NOTE: Funker dette?
+        ax.scatter(loris_ang[idx, idx+1], c=correlations, cmap=cmap)
+    plt.tight_layout()
+    plt.show()
+
 
 
