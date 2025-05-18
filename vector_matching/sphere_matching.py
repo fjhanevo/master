@@ -376,7 +376,6 @@ def vector_match_sum_score(
     step_size: float, 
     reciprocal_radius: float, 
     n_best: int,
-    distance_bound: float = 0.05
 ) -> np.ndarray:
     """
     Vector matching method based on KD-trees, takes only nearest-neighbour distances
@@ -426,11 +425,11 @@ def vector_match_sum_score(
                 sim_points = sim_tree.data
 
                 n_total = len(exp3d) + len(sim_points)
-                distances, _ = sim_tree.query(exp3d, distance_upper_bound=distance_bound)
+                distances, _ = sim_tree.query(exp3d)
                 # low score is good
                 score = np.sum(distances)/n_total
                 # mirror score
-                distances_mirror, _ = sim_tree.query(exp3d_mirror, distance_upper_bound=distance_bound)
+                distances_mirror, _ = sim_tree.query(exp3d_mirror)
                 score_mirror = np.sum(distances_mirror)/n_total
                 # Check score and keep only best score for each sim_frame
                 if score < best_score:
@@ -454,7 +453,7 @@ def vector_match_sum_score(
     return np.array(n_array)
  
 
-@njit
+# @njit
 def compute_best_score(
     exp3d, 
     exp3d_mirror,
