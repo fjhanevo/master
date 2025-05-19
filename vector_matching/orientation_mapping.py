@@ -4,8 +4,9 @@ import numpy as np
 import simulation as sim
 import plotting as plot
 import matplotlib.pyplot as plt
-from sphere_matching import vector_match, fast_polar
+from sphere_matching import vector_match_kd, fast_polar
 from time import time
+
 
 
 def to_orientation_map(data, simulation):
@@ -68,13 +69,15 @@ def compare_orientations(tm_orientation:np.ndarray, vm_orientation:np.ndarray) -
 def check_overlay_plot(exp, frame, sim, simulation):
     # Match one frame
     t1 = time()
-    n_array = vector_match([exp[frame]], sim,step_size=0.5, reciprocal_radius=1.35, n_best=1)
+    sim_trimmed = sim[:31]   # did this to decrease comp time, as I know the answer
+    print(sim_trimmed.shape)
+    n_array = vector_match_kd([exp[frame]], sim_trimmed,step_size=0.5, reciprocal_radius=1.35, n_best=1)
     t2 = time()
     print(n_array.shape)
     n_best = n_array[0][0]
-    frame, score, rotation, mirror = n_best[0],n_best[1],n_best[2], n_best[3]
+    frame_found, score, rotation, mirror = n_best[0],n_best[1],n_best[2], n_best[3]
     print(f"Computation time: {(t2-t1)/60} min")
-    print('Best frame:', frame)
+    print('Best frame:', frame_found)
     print('Best score:',score) 
     print('Best rotation:', rotation)
     print('Mirror factor:', mirror)
@@ -96,21 +99,13 @@ if __name__ == '__main__':
     DIR_HSPY = 'processed_hspy_files/'
     HSPY = 'LF_cal_log_m_center_strict_peaks.hspy'
     ORG_HSPY = 'LeftFish_unmasked.hspy'
-    FILE = '060525ormap_step05deg_vector_match_ang_score_NO_MIRROR_wrap_degrees_v060525.npy'
+    FILE_KD = '140525_vector_match_kd_step05deg_distbound005_fixedmirror.npy'
+    FILE_ANG = '150525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy'
+    FILE_SUM = '180525_vector_match_sum_score_step05deg_fixedmirror.npy'
 
+    hs.set_log_level('WARNING')
     s = hs.load(DIR_HSPY+HSPY)
-    ### UNCOMMENT FOR crystal_map ### 
-    # ------------------------------------------ #
-    # s = np.reshape(s.data,(6,10,256,256))
-    # s = pxm.signals.ElectronDiffraction2D(s)
-    # s.set_diffraction_calibration(0.0107)
-    # print(s.axes_manager.navigation_axes[0].units)
-    # print(s.axes_manager)
-    # s.axes_manager.navigation_axes[0].units = r"$Å^{-1}$"
-    # print(s.axes_manager.navigation_axes[0].units)
-    # ------------------------------------------ #
-
-
+    
     ### SIMULATED ###
     s_pol = s.get_azimuthal_integral2d(npt=112, radial_range=(0.,1.35))
     phase = sim.unit_cell()
@@ -119,44 +114,34 @@ if __name__ == '__main__':
     simulation = sim.compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
 
-    # sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
+    sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
 
-    ### Test check_overlay_plot ### 
-    FILE_STRICT = 'peaks_all_LoG.npy'
-    FILE_SIM = 'LF_r_theta_sim.npy'
-    experimental = np.load(DIR_NPY+FILE_STRICT,allow_pickle=True)
-    # Quick polar transform
-    experimental = fast_polar(experimental)
-    simulated = np.load(DIR_NPY+FILE_SIM,allow_pickle=True)
-
-    frame = 56
-    check_overlay_plot(experimental,frame, simulated, simulation)
+    
+    frame = 29
 
 
     i, j = frame, frame+1
     
     ### EXPERIMENTAL ###
-    # exp_results = np.load(DIR_NPY+FILE, allow_pickle=True)
-    # exp_results = to_orientation_map(exp_results,simulation)
+    exp_results = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
+    exp_results = to_orientation_map(exp_results,simulation)
+    # exp2 = np.load(DIR_NPY+'150525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy', allow_pickle=True)
+    # exp3 = np.load(DIR_NPY+'060525ormap_step05deg_vector_match_sum_score_NO_MIRROR_wrap_degrees_v060525.npy', allow_pickle=True)
+    # exp2 = to_orientation_map(exp2, simulation)
+    # exp3 = to_orientation_map(exp3, simulation)
+    lbls = ('Score A', 'Score B', 'Score C')
+    clrs = ('Blue', 'Green', 'Red')
+    # print("exp:", exp_results.data[frame][0])
+    # print("sim:", sim_results.data[frame][0])
+    plot.plot_ipf_all_best_orientations(sim_results, phase,cmap='viridis')
+    plot.plot_ipf_all_best_orientations(exp_results, phase,cmap='viridis_r')
 
-    
 
-    # stats = compare_orientations(sim_results.data, exp_results.data)
-    # print(stats)
-
-    # exp_results.data[frame][0][2] += 107.64028464817187 + 90
-    # exp_results.data[frame][0][3] = 0
-    # exp_results.data[frame][0][0] = 439
-    # sim_results.data[frame][0][0] = exp_results.data[frame][0][0]
     ### PLOTS ### 
     # plot.plot_misorientation_scatter(exp_results)
     # plot.plot_misorientation_scatter(sim_results)
     # plot.plot_ipf(sim_results,frame,phase,orientation, 'viridis')
-    # plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
-    # plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
-    # plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
-    #
-    ### Crystal map (reshaped dataset) ### 
-    # plot.plot_crystal_map(sim_results,phase)
-
+    plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
     
