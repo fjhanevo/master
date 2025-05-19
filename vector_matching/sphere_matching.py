@@ -506,7 +506,7 @@ def vector_match_faf(
     reciprocal_radius: float,
     n_best: int,
     distance_bound: float = 0.05,
-    n_jobs: int = -1
+    n_jobs: int = -2
 ) -> np.ndarray:
     """
     DOCSTRING!
