@@ -1,10 +1,11 @@
+from math import degrees
 import hyperspy.api as hs
 from orix.plot import IPFColorKeyTSL
 from orix.vector import Vector3d
 import matplotlib.pyplot as plt
 import numpy as np
 
-#NOTE: Change figsize for ipf!
+#NOTE: Don't use this for ipf just use font.size!!
 params = {
     'figure.figsize':(8.0,4.0), 'axes.grid': True,
     'lines.markersize': 8, 'lines.linewidth': 2,
@@ -165,7 +166,7 @@ def plot_ipf(data, idx, phase, orientation ,cmap:str):
     """
     Plots an IPF with a red marker indicating the best found orientation.
     """
-    fig = plt.figure()
+    fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
     correlations = data.inav[idx].data[:,1]
@@ -174,7 +175,8 @@ def plot_ipf(data, idx, phase, orientation ,cmap:str):
     loris= data.to_single_phase_orientations()
     loris_best = loris[idx,0]
     ax.scatter(orientations, c=correlations, cmap=cmap)
-    ax.scatter(loris_best,c='red',marker='o',s=100) # best found orientation
+    ax.scatter(loris_best,c='red',marker='o',s=80) # best found orientation
+    # plt.tight_layout()
     plt.show()
 
 def plot_with_markers(results, file,i,j):
@@ -290,21 +292,23 @@ def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
     plt.tight_layout()
     plt.show()
 
-#TODO: Fiks denne, funker ikke;(
-def plot_misorientations_on_ipf(data,phase, cmap:str) -> None:
+
+def plot_ipf_misorientations(data, phase, cmap):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
     loris = data.to_single_phase_orientations()
     num_frames = data.axes_manager.navigation_shape[0]
+
     for idx in range(num_frames):
         correlations = data.inav[idx].data[:,1]
-        loris_best = loris[idx, 0]
-        loris_ang = loris_best.angle_with_outer(loris_best,degrees=True)
-        #NOTE: Funker dette?
-        ax.scatter(loris_ang[idx, idx+1], c=correlations, cmap=cmap)
+        loris_best = loris[:, 0]
+        loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+        ax.scatter(loris_ang[idx,0], c=correlations, cmap=cmap)
     plt.tight_layout()
     plt.show()
+
+    
 
 
 
