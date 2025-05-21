@@ -1,4 +1,3 @@
-from math import degrees
 import hyperspy.api as hs
 from orix.plot import IPFColorKeyTSL
 from orix.vector import Vector3d
