@@ -133,15 +133,13 @@ if __name__ == '__main__':
     clrs = ('Blue', 'Green', 'Red')
     # print("exp:", exp_results.data[frame][0])
     # print("sim:", sim_results.data[frame][0])
-    plot.plot_ipf_all_best_orientations(sim_results, phase,cmap='viridis')
-    plot.plot_ipf_all_best_orientations(exp_results, phase,cmap='viridis_r')
-
 
     ### PLOTS ### 
+    plot.plot_ipf_misorientations(exp_results, phase, cmap='viridis_r')
     # plot.plot_misorientation_scatter(exp_results)
     # plot.plot_misorientation_scatter(sim_results)
     # plot.plot_ipf(sim_results,frame,phase,orientation, 'viridis')
-    plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
-    plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
-    plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
+    # plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    # plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    # plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
     
