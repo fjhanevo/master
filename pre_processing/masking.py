@@ -1,6 +1,13 @@
 import hyperspy.api as hs
 import matplotlib.pyplot as plt
 import numpy as np
+params = {
+    'figure.figsize':(8.0,4.0), 'axes.grid': True,
+    'lines.markersize': 8, 'lines.linewidth': 2,
+    'font.size': 18
+}
+plt.rcParams.update(params)
+
 
 
 def get_center_interactive(s):
@@ -67,6 +74,7 @@ def peak_find_one_frame(dp,frame, **kwargs):
              scalebar=True,scalebar_color='black', axes_ticks='off')
     dp_i.add_marker(m)
 
+    plt.tight_layout()
     plt.show()
     return vectors.data
 
@@ -93,6 +101,7 @@ if __name__ == '__main__':
     FILE='LeftFish_unmasked.hspy'
     CENTER_FILE = 'LF_cal_log_m_center.hspy'
     SAVE_FILE = 'LF_cal_log_m_center_m_peaks.hspy'
+    FILE_STRICT = 'LF_cal_log_m_center_strict_peaks.hspy'
     # VECTOR_FILE = 'LF_peaks_m_center_m_peaks.npy'
     VECTOR_FILE = 'peaks_all_LoG.npy'
     # dp = hs.load(DIR_HSPY+FILE)
@@ -122,6 +131,21 @@ if __name__ == '__main__':
         'exclude_border': True
     }
     filename = 'peaks_intensity_all_LoG.npy'
-    peaks = get_peaks(dp,**params_intensity)
-    np.save(file=DIR_NPY+filename, arr=peaks,allow_pickle=True)
+    # peaks = get_peaks(dp,**params_intensity)
+    # np.save(file=DIR_NPY+filename, arr=peaks,allow_pickle=True)
+    f56 = peak_find_one_frame(dp, 56, **params)
+    print(f56.shape)
+    f29 = peak_find_one_frame(dp, 29, **params)
+    dp_masked = hs.load(DIR_HSPY+FILE_STRICT)
+    dp_masked_56 = dp_masked.inav[56]
+    dp_masked_56.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
+             scalebar=True,scalebar_color='black', axes_ticks='off')
+
+    plt.tight_layout()
+    plt.show()
+    dp_masked_29 = dp_masked.inav[29]
+    dp_masked_29.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
+             scalebar=True,scalebar_color='black', axes_ticks='off')
+    plt.tight_layout()
+    plt.show()
 
