@@ -1,4 +1,3 @@
-import pyxem as pxm
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
@@ -9,23 +8,6 @@ from joblib import Parallel, delayed
 """
 Fil for sphere matching!:)
 """
-
-def fast_polar(cart_vec: np.ndarray) -> np.ndarray:
-    """
-    Polar transforms 2D cartesian vectors to 2D polar vectors
-    using pyxem, wow!
-    Params:
-    ---------
-        cart_vec: np.ndarray:
-            2D cartesian vector
-    Returns:
-    ---------
-        s.data: np.ndarray:
-            2D polar vector
-    """
-    s = pxm.signals.DiffractionVectors(cart_vec)
-    s = s.to_polar()
-    return s.data
 
 def vector_to_3D(vector: np.ndarray,reciprocal_radius: float) -> np.ndarray:
     """
@@ -54,9 +36,8 @@ def vector_to_3D(vector: np.ndarray,reciprocal_radius: float) -> np.ndarray:
     y = np.sin(l)*np.sin(theta)
     z = np.cos(l)
 
-    vector3d = np.stack([x,y,z],axis=-1)
 
-    return vector3d
+    return np.stack((x,y,z), axis=-1).astype(np.float32)
 
 def apply_z_rotation(vector: np.ndarray,theta: float) -> np.ndarray:
     """
@@ -77,7 +58,7 @@ def apply_z_rotation(vector: np.ndarray,theta: float) -> np.ndarray:
     sin_theta = np.sin(theta)
     rot = np.array([[cos_theta, -sin_theta, 0],
                     [sin_theta, cos_theta, 0],
-                    [0,0,1]])
+                    [0,0,1]], dtype=np.float32)
     return vector @ rot.T
 
 def full_z_rotation(vector: np.ndarray, step_size: float) -> np.ndarray:
@@ -94,8 +75,9 @@ def full_z_rotation(vector: np.ndarray, step_size: float) -> np.ndarray:
         np.ndarray:
         fully rotated vector around the z-axis.
     """
-    angles = np.arange(0,2*np.pi,step_size).tolist()
-    return np.array([apply_z_rotation(vector, theta) for theta in angles])
+    angles = np.arange(0,2*np.pi,step_size, dtype=np.float32)
+    rotated = [apply_z_rotation(vector, theta) for theta in angles]
+    return np.stack(rotated).astype(np.float32)
 
 def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float) -> np.ndarray:
     """
@@ -215,6 +197,8 @@ def vector_match(
             [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
             for sim_frame in simulated
         ]
+    else:
+        raise ValueError(f"Unsupported method: {method}")
 
     # array to store final results
     n_array = []
@@ -249,7 +233,8 @@ def vector_match(
 
 #NOTE: Dette under er for gøy
 def process_exp_frame(
-    exp_frame: np.ndarray,
+    exp3d: np.ndarray,
+    exp3d_mirror: np.ndarray,
     sim_data,
     step_size_rad: float,
     n_best: int,
@@ -257,8 +242,6 @@ def process_exp_frame(
     method: str,
     **kwargs
 ):
-    exp3d = vector_to_3D(exp_frame, reciprocal_radius)
-    exp3d_mirror = exp3d * np.array([1, -1, 1])
     iteration_results = []
 
     for sim_idx, sim_tree_rotated in enumerate(sim_data):
@@ -296,16 +279,21 @@ def vm_faf(
     else:
         raise ValueError(f"Unsupported method {method}")
 
+    # precompute experimental projections and mirrors
+    exp3d_all = [vector_to_3D(exp_vec, reciprocal_radius) for exp_vec in experimental]
+    exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=np.float32) for exp_vec in exp3d_all]
+
     results = Parallel(n_jobs=n_jobs) (
         delayed(process_exp_frame) (
-            exp_frame=exp,
+            exp3d=exp3d_all[idx],
+            exp3d_mirror=exp3d_mirror_all[idx],
             sim_data=precomputed_data,
             step_size_rad=step_size_rad,
             n_best=n_best,
             reciprocal_radius=reciprocal_radius,
             method=method,
             **kwargs
-        ) for exp in tqdm(experimental)
+        ) for idx in tqdm(range(len(experimental)))
     )
     return np.stack(results)
  
