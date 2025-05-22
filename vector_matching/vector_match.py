@@ -1,0 +1,311 @@
+import pyxem as pxm
+import numpy as np
+from scipy.spatial import cKDTree
+from tqdm import tqdm
+from numba import njit
+import heapq
+from joblib import Parallel, delayed
+
+"""
+Fil for sphere matching!:)
+"""
+
+def fast_polar(cart_vec: np.ndarray) -> np.ndarray:
+    """
+    Polar transforms 2D cartesian vectors to 2D polar vectors
+    using pyxem, wow!
+    Params:
+    ---------
+        cart_vec: np.ndarray:
+            2D cartesian vector
+    Returns:
+    ---------
+        s.data: np.ndarray:
+            2D polar vector
+    """
+    s = pxm.signals.DiffractionVectors(cart_vec)
+    s = s.to_polar()
+    return s.data
+
+def vector_to_3D(vector: np.ndarray,reciprocal_radius: float) -> np.ndarray:
+    """
+    Takes in a 2D polar vector and converts it to 
+    a 3D sphere.
+    Params:
+    ---------
+        vector: np.ndarray
+            2D polar vector (r,theta)
+        reciprocal_radius: float
+            reciprocal space radius to account for
+    Returns:
+    ---------
+        vector3d: np.ndarray
+            3D vector coordinates
+    """
+    # get r coords
+    r = vector[...,0]
+    # get theta coords
+    theta = vector[...,1]
+
+    l = 2*np.arctan(r/(2*reciprocal_radius))
+
+    # 3D coords
+    x = np.sin(l)*np.cos(theta)
+    y = np.sin(l)*np.sin(theta)
+    z = np.cos(l)
+
+    vector3d = np.stack([x,y,z],axis=-1)
+
+    return vector3d
+
+def apply_z_rotation(vector: np.ndarray,theta: float) -> np.ndarray:
+    """
+    It just rotates the sphere around the z-axis with a given angle.
+    Params:
+    ---------
+        vector: np.ndarray
+            input 3D vector
+        theta: float
+            angle to rotate vector for in radians 
+    Returns:
+    ---------
+        np.ndarray
+            the dot product between rot matrix and input vector
+    """
+
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    rot = np.array([[cos_theta, -sin_theta, 0],
+                    [sin_theta, cos_theta, 0],
+                    [0,0,1]])
+    return vector @ rot.T
+
+def full_z_rotation(vector: np.ndarray, step_size: float) -> np.ndarray:
+    """
+    Helper function to add a rotation dimension.
+    Params:
+    ---------
+        vector: np.ndarray
+            3D input vector
+        step_size: float
+            angular increment
+    Returns:
+    ---------
+        np.ndarray:
+        fully rotated vector around the z-axis.
+    """
+    angles = np.arange(0,2*np.pi,step_size).tolist()
+    return np.array([apply_z_rotation(vector, theta) for theta in angles])
+
+def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float) -> np.ndarray:
+    """
+    Helper function for vector_match() to filter out zeros
+    from sim because its homo, and now its in-homo.
+    Params:
+    ---------
+        sim: np.ndarray
+            simulated 3D vector
+        step_size: float
+            angular increment 
+        reciprocal_radius: float
+            reciprocal space radius to account for
+    Returns:
+    ---------
+        full_z_rotation(): np.ndarray
+            rotates the vector fully around the z-axis for given
+            step_size, adds a new dimension in the dataset,
+            from (N,3) to (M,N,3).
+    """
+    sim_filtered = sim[~np.all(sim == 0, axis=1)]
+
+    sim_filtered_3d = vector_to_3D(sim_filtered, reciprocal_radius)
+
+    return full_z_rotation(sim_filtered_3d,step_size)
+
+@njit
+def wrap_degrees(angle_rad: float, mirror: int) -> int:
+    """
+    Converts radian rotation into degrees, re-align reference axis
+    with Pyxems conventions. Wraps it to the range (-180, 180) deg, 
+    with counter-clockwise rotation
+    Params:
+    ---------
+        angle_rad: float
+            the in-plane angle found from VM in radians
+        mirror: int
+            mirror factor from VM, either 1 or -1 depending on if the 
+            pattern was mirrored. Used to reverse rotation if mirrored
+            (mirror == -1)
+    Returns:
+    ---------
+        angle_deg: int 
+            the in-plane rotation in degrees and changed to match Pyxems conventions.
+            if mirrored, returns the reverse rotation
+            if not mirrored, add 180 degs to match pyxem. 
+    """
+    angle_deg = int(np.rad2deg((angle_rad-np.pi/2)  % (2*np.pi)))
+    if angle_deg > 180:
+        angle_deg -= 360
+    if mirror < 0:
+        # reverse rotation when mirrored
+        angle_deg = -angle_deg
+        return angle_deg
+    # Add 180 deg to match pyxem conventions (due to mirror factor applying a 180 deg rotation)
+    else: 
+        return angle_deg + 180
+
+def sum_score(
+    exp3d: np.ndarray, 
+    exp3d_mirror: np.ndarray, 
+    sim_trees,
+    step_size_rad: float
+) -> tuple:
+    """
+    Docstring, dette er score A
+    """
+    best_score, best_rotation, mirror = np.inf, 0.0, 0
+
+    for rot_idx, sim_tree in enumerate(sim_trees):
+        # get total points for normalisation
+        sim_points = sim_tree.data
+        n_total = len(exp3d) + len(sim_points)
+
+        # skip if 0 vectors are found for HMS safety guidelines
+        if n_total == 0:
+            continue
+
+        # calculate nn-distances
+        distances, _ = sim_tree.query(exp3d)
+        distances_mirror, _ = sim_tree.query(exp3d_mirror)
+
+        # calculate scores
+        scores = [
+            (np.sum(distances) / n_total, 1),
+            (np.sum(distances_mirror) / n_total, -1),
+        ]
+
+        # check score and keep only the best score for each sim_frame
+        for score, mirror_flag in scores:
+            if score < best_score:
+                best_score = score
+                ang = rot_idx * step_size_rad
+                mirror = mirror_flag
+                best_rotation = wrap_degrees(ang, mirror)
+
+    return best_score, best_rotation, mirror
+
+def vector_match(
+    experimental: np.ndarray,
+    simulated: np.ndarray,
+    step_size: float, 
+    reciprocal_radius: float,
+    n_best: int,
+    method: str = "sum",
+    **kwargs
+) -> np.ndarray:
+    """
+    Docstring
+    """
+    
+    # Convert input degrees to radians
+    step_size_rad = np.deg2rad(step_size)
+    if method == "sum" or method == "kd":
+        # Precompute KD-trees for rotated simulated frames
+        precomputed_data= [
+            [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+            for sim_frame in simulated
+        ]
+
+    # array to store final results
+    n_array = []
+
+    # Loop through experimental vectors
+    for exp_frame in tqdm(experimental):
+        # convert to 3D
+        exp3d = vector_to_3D(exp_frame, reciprocal_radius)
+        # mirror over xz-plane
+        exp3d_mirror = exp3d * np.array([1,-1,1])
+
+        # array to store results per iteration of shape (n_best, 4)
+        iteration_results = []
+        
+        for sim_idx, sim_tree_rotated in enumerate(precomputed_data):
+            best_score, best_rotation, mirror = np.inf, 0.0, 0
+
+            if method == "sum":
+                best_score, best_rotation, mirror = sum_score(
+                    exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad)
+            else: 
+                raise ValueError(f"Unsupported method: {method}")
+            iteration_results.append((sim_idx, best_score, best_rotation, mirror))
+
+
+        # append results and sort by ascending score
+        n_array.append(heapq.nsmallest(n_best, iteration_results, key=lambda x: x[1]))
+            
+    # returns nx4 array of shape (len(experimental), n_best, 4)
+    return np.stack(n_array)
+
+
+#NOTE: Dette under er for gøy
+def process_exp_frame(
+    exp_frame: np.ndarray,
+    sim_data,
+    step_size_rad: float,
+    n_best: int,
+    reciprocal_radius: float,
+    method: str,
+    **kwargs
+):
+    exp3d = vector_to_3D(exp_frame, reciprocal_radius)
+    exp3d_mirror = exp3d * np.array([1, -1, 1])
+    iteration_results = []
+
+    for sim_idx, sim_tree_rotated in enumerate(sim_data):
+        if method == "sum":
+            best_score, best_rotation, mirror = sum_score(
+                exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad
+            )
+            iteration_results.append((sim_idx, best_score, best_rotation, mirror))
+
+    return heapq.nsmallest(n_best, iteration_results, key=lambda x: x[1])
+
+             
+def vm_faf(
+    experimental: np.ndarray,
+    simulated: np.ndarray,
+    step_size: float, 
+    reciprocal_radius: float,
+    n_best: int,
+    method: str = "sum",
+    n_jobs: int = -1,
+    **kwargs
+) -> np.ndarray:
+    """
+    Docstring
+    """
+    
+    # Convert input degrees to radians
+    step_size_rad = np.deg2rad(step_size)
+    if method == "sum" or method == "kd":
+        # Precompute KD-trees for rotated simulated frames
+        precomputed_data= [
+            [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+            for sim_frame in simulated
+        ]
+    else:
+        raise ValueError(f"Unsupported method {method}")
+
+    results = Parallel(n_jobs=n_jobs) (
+        delayed(process_exp_frame) (
+            exp_frame=exp,
+            sim_data=precomputed_data,
+            step_size_rad=step_size_rad,
+            n_best=n_best,
+            reciprocal_radius=reciprocal_radius,
+            method=method,
+            **kwargs
+        ) for exp in tqdm(experimental)
+    )
+    return np.stack(results)
+ 
