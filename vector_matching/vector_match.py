@@ -45,7 +45,7 @@ def sum_score(
 
     return best_score, best_rotation, mirror
 
-def sum_score_weighted(
+def sum_score_weighted_old(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
     sim_trees,
@@ -96,6 +96,71 @@ def sum_score_weighted(
                 mirror = mirror_flag
                 best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
+
+def sum_score_weighted(
+    exp3d: np.ndarray, 
+    exp3d_mirror: np.ndarray, 
+    sim_trees,
+    step_size_rad: float,
+    distance_bound: float = 0.05
+) -> tuple:
+    best_score, best_rotation, mirror = np.inf, 0.0, 0
+
+    # experimental trees
+    exp_tree = cKDTree(exp3d)
+    exp_tree_mirror = cKDTree(exp3d_mirror)
+
+    for rot_idx, sim_tree in enumerate(sim_trees):
+        # get total points for normalisation
+        sim_points = sim_tree.data
+        n_total = len(exp3d) + len(sim_points)
+
+        # skip if 0 vectors are found for HMS safety guidelines
+        if n_total == 0:
+            continue
+
+
+        # calculate nn distances both ways
+        dist_exp_to_sim, _ = sim_tree.query(exp3d, distance_upper_bound=distance_bound)
+        dist_sim_to_exp, _ = exp_tree.query(sim_points, distance_upper_bound=distance_bound)
+
+        # mirrored version
+        dist_exp_to_sim_m, _ = sim_tree.query(exp3d_mirror,distance_upper_bound=distance_bound)
+        dist_sim_to_exp_m, _ = exp_tree_mirror.query(sim_points,distance_upper_bound=distance_bound)
+
+        # penalise unmatched points by treating their distance as distance_bound
+        dist_exp_to_sim_penalised = np.copy(dist_exp_to_sim)
+        dist_exp_to_sim_penalised[np.isinf(dist_exp_to_sim_penalised)] = distance_bound
+        dist_sim_to_exp_penalised = np.copy(dist_sim_to_exp)
+        dist_sim_to_exp_penalised[np.isinf(dist_sim_to_exp_penalised)] = distance_bound
+
+        # mirrored version
+        dist_exp_to_sim_penalised_m = np.copy(dist_exp_to_sim_m)
+        dist_exp_to_sim_penalised_m[np.isinf(dist_exp_to_sim_penalised_m)] = distance_bound
+        dist_sim_to_exp_penalised_m = np.copy(dist_sim_to_exp_m)
+        dist_sim_to_exp_penalised_m[np.isinf(dist_sim_to_exp_penalised_m)] = distance_bound
+
+        # unmirrored score
+        score_exp = np.sum(dist_exp_to_sim_penalised)
+        score_sim = np.sum(dist_sim_to_exp_penalised)
+
+        # mirror score
+        score_exp_m = np.sum(dist_exp_to_sim_penalised_m)
+        score_sim_m = np.sum(dist_sim_to_exp_penalised_m)
+        
+        scores = [
+            ((score_exp + score_sim) / n_total, 1),
+            ((score_exp_m + score_sim_m) / n_total, -1),
+        ]
+        # check score and keep only the best score for each sim_frame
+        for score, mirror_flag in scores:
+            if score < best_score:
+                best_score = score
+                ang = rot_idx * step_size_rad
+                mirror = mirror_flag
+                best_rotation = vm_utils.wrap_degrees(ang, mirror)
+    return best_score, best_rotation, mirror
+
 
 
 def vector_match(
