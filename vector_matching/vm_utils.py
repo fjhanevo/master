@@ -72,7 +72,7 @@ def full_z_rotation(vector: np.ndarray, step_size: float, dtype=np.float32) -> n
     rotated = [apply_z_rotation(vector, theta) for theta in angles]
     return np.stack(rotated).astype(dtype)
 
-def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float) -> np.ndarray:
+def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtype=np.float32) -> np.ndarray:
     """
     Helper function for vector_match() to filter out zeros
     from sim because its homo, and now its in-homo.
@@ -93,9 +93,9 @@ def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float) -> n
     """
     sim_filtered = sim[~np.all(sim == 0, axis=1)]
 
-    sim_filtered_3d = vector_to_3D(sim_filtered, reciprocal_radius)
+    sim_filtered_3d = vector_to_3D(sim_filtered, reciprocal_radius, dtype)
 
-    return full_z_rotation(sim_filtered_3d,step_size)
+    return full_z_rotation(sim_filtered_3d,step_size, dtype)
 
 @njit
 def wrap_degrees(angle_rad: float, mirror: int) -> int:
