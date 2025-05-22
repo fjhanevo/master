@@ -3,6 +3,7 @@ import numpy as np
 import plotting
 import sphere_matching as sm
 from time import time
+import vector_match as vm
 
 """
 Fil for å teste ut ting:)
@@ -53,11 +54,11 @@ def create_and_save_dataset(
     step_size: float, 
     reciprocal_radius: float, 
     n_best: int,
-    method: int, 
+    method: str, 
     filename:str
 ) -> None:
     t1 = time()
-    n_array = sm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best, method)
+    n_array = vm.vector_match(experimental, simulated, step_size, reciprocal_radius, n_best, method)
     print(n_array.shape)
     np.save(file=filename, arr=n_array, allow_pickle=True)
     t2 = time()
@@ -100,7 +101,7 @@ def dataset_for_algorithm_accuracy(simulated, step_size, reciprocal_radius,n_bes
         step_size=step_size,
         reciprocal_radius=reciprocal_radius,
         n_best=n_best,
-        method=1,
+        method="",
         filename=filename,
     )
 
@@ -123,22 +124,23 @@ if __name__ == '__main__':
     n_best = len(simulated) 
 
     ### CREATE NEW FILES ### 
-    filename = '160525_vector_match_sum_score_step05deg_fixedmirror.npy'
+    filename = '220525_vector_match_sum_score_weighted_step05deg_distbound005.npy'
     create_and_save_dataset(
         experimental,
         simulated, 
         step_size,
         reciprocal_radius,
         n_best, 
-        method=3,
+        method="sum_score_weighted",
         filename=DIR_NPY+filename,
     )
 
-    filename = '160525_VM_matched_with_itself_step1deg_vector_match_kd_method.npy'
-    dataset_for_algorithm_accuracy(
-        simulated=simulated,
-        step_size=1,
-        reciprocal_radius=reciprocal_radius,
-        n_best=n_best,
-        filename=DIR_NPY+filename
-    )
+
+    # filename = '160525_VM_matched_with_itself_step1deg_vector_match_kd_method.npy'
+    # dataset_for_algorithm_accuracy(
+    #     simulated=simulated,
+    #     step_size=1,
+    #     reciprocal_radius=reciprocal_radius,
+    #     n_best=n_best,
+    #     filename=DIR_NPY+filename
+    # )
