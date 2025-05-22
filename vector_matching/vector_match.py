@@ -90,8 +90,8 @@ def sum_score_weighted(
         matched_score_m = np.sum(dist_exp_to_sim_m[np.isfinite(dist_exp_to_sim_m)])
 
         scores = [
-            (matched_score + (n_unmatched_exp + n_unmatched_sim) / n_total, 1),
-            (matched_score_m + (n_unmatched_exp_m + n_unmatched_sim_m) / n_total, -1),
+            ((matched_score + (n_unmatched_exp + n_unmatched_sim)) / n_total, 1),
+            ((matched_score_m + (n_unmatched_exp_m + n_unmatched_sim_m)) / n_total, -1),
         ]
         # check score and keep only the best score for each sim_frame
         for score, mirror_flag in scores:
@@ -161,7 +161,7 @@ def vector_match(
     return np.stack(n_array)
 
 
-#NOTE: Dette under er for gøy
+#NOTE: Used for parallelization
 def process_exp_frame(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
@@ -170,7 +170,6 @@ def process_exp_frame(
     n_best: int,
     method: str="sum",
     distance_bound: float = 0.05,
-    **kwargs
 ):
     iteration_results = []
 
@@ -190,6 +189,9 @@ def process_exp_frame(
     return heapq.nsmallest(n_best, iteration_results, key=lambda x: x[1])
 
              
+#NOTE: This function is logically similar to vector_match but 
+# attempts to use more of the CPU and memory for faster runtime.
+# it is very RAM demanding
 def vector_match_parallelized(
     experimental: np.ndarray,
     simulated: np.ndarray,
@@ -199,7 +201,6 @@ def vector_match_parallelized(
     method: str = "sum",
     n_jobs: int = -1,
     dtype=np.float32,
-    **kwargs
 ) -> np.ndarray:
     """
     Docstring
@@ -229,7 +230,6 @@ def vector_match_parallelized(
             n_best=n_best,
             reciprocal_radius=reciprocal_radius,
             method=method,
-            **kwargs
         ) for idx in tqdm(range(len(experimental)))
     )
     return np.stack(results)
