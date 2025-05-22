@@ -1,14 +1,9 @@
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
-from numba import njit
 import heapq
 from joblib import Parallel, delayed
-from vm_utils import *
-
-"""
-Fil for sphere matching!:)
-"""
+import vm_utils
 
 def sum_score(
     exp3d: np.ndarray, 
@@ -46,7 +41,7 @@ def sum_score(
                 best_score = score
                 ang = rot_idx * step_size_rad
                 mirror = mirror_flag
-                best_rotation = wrap_degrees(ang, mirror)
+                best_rotation = vm_utils.wrap_degrees(ang, mirror)
 
     return best_score, best_rotation, mirror
 
@@ -99,7 +94,7 @@ def sum_score_weighted(
                 best_score = score
                 ang = rot_idx * step_size_rad
                 mirror = mirror_flag
-                best_rotation = wrap_degrees(ang, mirror)
+                best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
 
 
@@ -111,7 +106,7 @@ def vector_match(
     n_best: int,
     method: str = "sum",
     distance_bound: float = 0.05,
-    **kwargs
+    dtype=np.float32
 ) -> np.ndarray:
     """
     Docstring
@@ -122,7 +117,7 @@ def vector_match(
     if method == "sum_score" or method == "sum_score_weighted":
         # Precompute KD-trees for rotated simulated frames
         precomputed_data= [
-            [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+            [cKDTree(rot_frame) for rot_frame in vm_utils.filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
             for sim_frame in simulated
         ]
     else:
@@ -132,8 +127,8 @@ def vector_match(
     n_array = []
     
     # Pre-compute exp3d and its mirror
-    exp3d_all = [vector_to_3D(exp_vec, reciprocal_radius) for exp_vec in experimental]
-    exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=np.float32) for exp_vec in exp3d_all]
+    exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
+    exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
 
     # Loop through experimental vectors
     for idx in tqdm(range(len(experimental))):
@@ -200,6 +195,7 @@ def vector_match_parallelized(
     n_best: int,
     method: str = "sum",
     n_jobs: int = -1,
+    distance_bound: float = 0.05,
     dtype=np.float32,
 ) -> np.ndarray:
     """
@@ -211,14 +207,14 @@ def vector_match_parallelized(
     if method == "sum" or method == "sum_score_weighted":
         # Precompute KD-trees for rotated simulated frames
         precomputed_data= [
-            [cKDTree(rot_frame) for rot_frame in filter_sim(sim_frame, step_size_rad, reciprocal_radius)]
+            [cKDTree(rot_frame) for rot_frame in vm_utils.filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
             for sim_frame in simulated
         ]
     else:
         raise ValueError(f"Unsupported method {method}")
 
     # precompute experimental projections and mirrors
-    exp3d_all = [vector_to_3D(exp_vec, reciprocal_radius) for exp_vec in experimental]
+    exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
     exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
 
     results = Parallel(n_jobs=n_jobs) (
@@ -228,9 +224,8 @@ def vector_match_parallelized(
             sim_data=precomputed_data,
             step_size_rad=step_size_rad,
             n_best=n_best,
-            reciprocal_radius=reciprocal_radius,
             method=method,
+            distance_bound=distance_bound
         ) for idx in tqdm(range(len(experimental)))
     )
     return np.stack(results)
- 
