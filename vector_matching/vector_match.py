@@ -41,7 +41,7 @@ def _sum_score(
                 best_score = score
                 ang = rot_idx * step_size_rad
                 mirror = mirror_flag
-                best_rotation = vm_utils._wrap_degrees(ang, mirror)
+                best_rotation = vm_utils.wrap_degrees(ang, mirror)
 
     return best_score, best_rotation, mirror
 
@@ -109,7 +109,7 @@ def _sum_score_weighted(
                 best_score = score
                 ang = rot_idx * step_size_rad
                 mirror = mirror_flag
-                best_rotation = vm_utils._wrap_degrees(ang, mirror)
+                best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
 
 def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
@@ -166,25 +166,24 @@ def vector_match(
     if method not in valid_methods:
         raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
 
-
-
     # Convert input degrees to radians
     step_size_rad = np.deg2rad(step_size)
     # Precompute KD-trees for rotated simulated frames
     precomputed_data= [
-        [cKDTree(rot_frame[:, :3]) for rot_frame in vm_utils._filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
+        [cKDTree(rot_frame[:, :3]) for rot_frame in vm_utils.filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
         for sim_frame in simulated
     ]
 
     # array to store final results
     n_array = []
+
     # Pre-compute exp3d and its mirror
     exp3d_all = [vm_utils._vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
     exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
 
-    # Loop through experimental vectors
     if fast:
-        n_array= Parallel(n_jobs=n_jobs) (
+        # parallelised method, very RAM demanding
+        n_array = Parallel(n_jobs=n_jobs) (
         delayed(_process_frames) (
             exp3d=exp3d_all[idx],
             exp3d_mirror=exp3d_mirror_all[idx],
@@ -198,6 +197,7 @@ def vector_match(
         return np.stack(n_array)
 
     else:
+        # slower method, but more light on RAM
         for idx in tqdm(range(len(experimental))):
 
             n_array.append(_process_frames(
