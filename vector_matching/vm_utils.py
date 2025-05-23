@@ -72,7 +72,7 @@ def _full_z_rotation(vector: np.ndarray, step_size: float, dtype=np.float32) -> 
     rotated = [_apply_z_rotation(vector, theta) for theta in angles]
     return np.stack(rotated).astype(dtype)
 
-def _filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtype=np.float32) -> np.ndarray:
+def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtype=np.float32) -> np.ndarray:
     """
     Helper function for vector_match() to filter out zeros
     from sim because its homo, and now its in-homo.
@@ -98,7 +98,7 @@ def _filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dty
     return _full_z_rotation(sim_filtered_3d,step_size, dtype)
 
 @njit
-def _wrap_degrees(angle_rad: float, mirror: int) -> int:
+def wrap_degrees(angle_rad: float, mirror: int) -> int:
     """
     Converts radian rotation into degrees, re-align reference axis
     with Pyxems conventions. Wraps it to the range (-180, 180) deg, 
