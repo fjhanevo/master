@@ -1,11 +1,11 @@
+import heapq
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
-import heapq
 from joblib import Parallel, delayed
 import vm_utils
 
-def sum_score(
+def _sum_score(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
     sim_trees,
@@ -41,17 +41,20 @@ def sum_score(
                 best_score = score
                 ang = rot_idx * step_size_rad
                 mirror = mirror_flag
-                best_rotation = vm_utils.wrap_degrees(ang, mirror)
+                best_rotation = vm_utils._wrap_degrees(ang, mirror)
 
     return best_score, best_rotation, mirror
 
-def sum_score_weighted(
+def _sum_score_weighted(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
     sim_trees,
     step_size_rad: float,
     distance_bound: float = 0.05
 ) -> tuple:
+    """
+    Docstring. Dette er score B, det er den beste <3
+    """
     best_score, best_rotation, mirror = np.inf, 0.0, 0
 
     # experimental trees
@@ -106,8 +109,37 @@ def sum_score_weighted(
                 best_score = score
                 ang = rot_idx * step_size_rad
                 mirror = mirror_flag
-                best_rotation = vm_utils.wrap_degrees(ang, mirror)
+                best_rotation = vm_utils._wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
+
+def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
+    # validate experimental dimensions
+    if isinstance(experimental, np.ndarray) and experimental.ndim >= 2:
+        exp_dim = experimental.shape[-1]
+    elif isinstance(experimental, (list, np.ndarray)) and isinstance(experimental[0], np.ndarray):
+        exp_dim = experimental[0].shape[-1]
+    else:
+        raise ValueError("Unsupported dimension for 'experimental' input.")
+
+    # validate simulated dimensions
+    if isinstance(simulated, np.ndarray) and simulated.ndim >= 2:
+        sim_dim = simulated.shape[-1]
+    elif isinstance(simulated, (list, np.ndarray)) and isinstance(simulated[0], np.ndarray):
+        sim_dim = simulated[0].shape[-1]
+    else:
+        raise ValueError("Unsupported dimension for 'simulated' input.")
+
+    # validate equal dimensions
+    if exp_dim != sim_dim:
+        raise ValueError(
+            f"Mismatched input dimensions: experimental = {exp_dim}, simulated = {sim_dim}"
+        )
+
+    if exp_dim not in {2,3}:
+        raise ValueError(
+            f"Unsupported input dimension: {exp_dim}D. Only 2D (polar) or 3D (polar with intensities) supported."
+        )
+
 
 
 def vector_match(
@@ -126,28 +158,34 @@ def vector_match(
     Docstring
     """
     
+    # check correct dimensions of experimental and simulated
+    _validate_dimensions(experimental, simulated) 
+
+    # check for valid methods
     valid_methods = {"sum_score", "sum_score_weighted"}
     if method not in valid_methods:
         raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
+
+
 
     # Convert input degrees to radians
     step_size_rad = np.deg2rad(step_size)
     # Precompute KD-trees for rotated simulated frames
     precomputed_data= [
-        [cKDTree(rot_frame[:, :3]) for rot_frame in vm_utils.filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
+        [cKDTree(rot_frame[:, :3]) for rot_frame in vm_utils._filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
         for sim_frame in simulated
     ]
 
     # array to store final results
     n_array = []
     # Pre-compute exp3d and its mirror
-    exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
+    exp3d_all = [vm_utils._vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
     exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
 
     # Loop through experimental vectors
     if fast:
         n_array= Parallel(n_jobs=n_jobs) (
-        delayed(process_frames) (
+        delayed(_process_frames) (
             exp3d=exp3d_all[idx],
             exp3d_mirror=exp3d_mirror_all[idx],
             sim_data=precomputed_data,
@@ -158,10 +196,11 @@ def vector_match(
         ) for idx in tqdm(range(len(experimental)))
     )
         return np.stack(n_array)
+
     else:
         for idx in tqdm(range(len(experimental))):
 
-            n_array.append(process_frames(
+            n_array.append(_process_frames(
                 exp3d_all[idx], exp3d_mirror_all[idx], precomputed_data, step_size_rad, n_best,
                 method, distance_bound
             ))
@@ -169,7 +208,7 @@ def vector_match(
         return np.stack(n_array)
 
 
-def process_frames(
+def _process_frames(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
     sim_data,
@@ -183,11 +222,11 @@ def process_frames(
     for sim_idx, sim_tree_rotated in enumerate(sim_data):
         best_score, best_rotation, mirror = np.inf, 0.0, 0
         if method == "sum":
-            best_score, best_rotation, mirror = sum_score(
+            best_score, best_rotation, mirror = _sum_score(
                 exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad
             )
         elif method == "sum_score_weighted":
-            best_score, best_rotation, mirror = sum_score_weighted(
+            best_score, best_rotation, mirror = _sum_score_weighted(
                 exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad, distance_bound
             )
         iteration_results.append((sim_idx, best_score, best_rotation, mirror))
