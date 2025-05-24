@@ -152,7 +152,7 @@ def vector_match(
     fast: bool = False,
     n_jobs: int = -1,
     distance_bound: float = 0.05,
-    dtype=np.float32
+    dtype=np.float64
 ) -> np.ndarray:
     """
     Docstring
