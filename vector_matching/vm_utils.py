@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 
 
-def _vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype=np.float32) -> np.ndarray:
+def _vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype) -> np.ndarray:
     """
     Takes in a 2D polar vector and converts it to 
     a 3D sphere.
@@ -32,7 +32,7 @@ def _vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype=np.float32)
 
     return np.stack((x,y,z), axis=-1).astype(dtype)
 
-def _apply_z_rotation(vector: np.ndarray,theta: float, dtype=np.float32) -> np.ndarray:
+def _apply_z_rotation(vector: np.ndarray,theta: float, dtype) -> np.ndarray:
     """
     It just rotates the sphere around the z-axis with a given angle.
     Params:
@@ -54,7 +54,7 @@ def _apply_z_rotation(vector: np.ndarray,theta: float, dtype=np.float32) -> np.n
                     [0,0,1]], dtype=dtype)
     return vector @ rot.T
 
-def _full_z_rotation(vector: np.ndarray, step_size: float, dtype=np.float32) -> np.ndarray:
+def _full_z_rotation(vector: np.ndarray, step_size: float, dtype) -> np.ndarray:
     """
     Helper function to add a rotation dimension.
     Params:
@@ -69,10 +69,10 @@ def _full_z_rotation(vector: np.ndarray, step_size: float, dtype=np.float32) -> 
         fully rotated vector around the z-axis.
     """
     angles = np.arange(0,2*np.pi,step_size, dtype=dtype)
-    rotated = [_apply_z_rotation(vector, theta) for theta in angles]
+    rotated = [_apply_z_rotation(vector, theta, dtype) for theta in angles]
     return np.stack(rotated).astype(dtype)
 
-def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtype=np.float32) -> np.ndarray:
+def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtype) -> np.ndarray:
     """
     Helper function for vector_match() to filter out zeros
     from sim because its homo, and now its in-homo.
