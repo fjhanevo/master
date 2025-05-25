@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 
 
-def _vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype) -> np.ndarray:
+def vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype) -> np.ndarray:
     """
     Takes in a 2D polar vector and converts it to 
     a 3D sphere.
