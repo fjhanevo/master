@@ -1,5 +1,4 @@
 import heapq
-from hyperspy.component import export_to_dictionary
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
@@ -115,107 +114,6 @@ def sum_score_weighted(
                 best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
 
-def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
-    # validate experimental dimensions
-    if isinstance(experimental, np.ndarray) and experimental.ndim >= 2:
-        exp_dim = experimental.shape[-1]
-    elif isinstance(experimental, (list, np.ndarray)) and isinstance(experimental[0], np.ndarray):
-        exp_dim = experimental[0].shape[-1]
-    else:
-        raise ValueError("Unsupported dimension for 'experimental' input.")
-
-    # validate simulated dimensions
-    if isinstance(simulated, np.ndarray) and simulated.ndim >= 2:
-        sim_dim = simulated.shape[-1]
-    elif isinstance(simulated, (list, np.ndarray)) and isinstance(simulated[0], np.ndarray):
-        sim_dim = simulated[0].shape[-1]
-    else:
-        raise ValueError("Unsupported dimension for 'simulated' input.")
-
-    # validate equal dimensions
-    if exp_dim != sim_dim:
-        raise ValueError(
-            f"Mismatched input dimensions: experimental = {exp_dim}, simulated = {sim_dim}"
-        )
-
-    if exp_dim not in {2,3}:
-        raise ValueError(
-            f"Unsupported input dimension: {exp_dim}D. Only 2D (polar) or 3D (polar with intensities) supported."
-        )
-    return exp_dim
-
-
-def vector_match(
-    experimental: np.ndarray,
-    simulated: np.ndarray,
-    step_size: float, 
-    reciprocal_radius: float,
-    n_best: int,
-    method: str = "sum",
-    fast: bool = False,
-    n_jobs: int = -1,
-    distance_bound: float = 0.05,
-    dtype=np.float64
-) -> np.ndarray:
-    """
-    Docstring
-    """
-    
-    # check correct dimensions of experimental and simulated
-    dimension = _validate_dimensions(experimental, simulated) 
-
-    # check for valid methods
-    valid_methods = {"sum_score", "sum_score_weighted"}
-    if method not in valid_methods:
-        raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
-
-    # Convert input degrees to radians
-    step_size_rad = np.deg2rad(step_size)
-    # Precompute KD-trees for rotated simulated frames
-    precomputed_data= [
-        [cKDTree(rot_frame[:, :3]) for rot_frame in vm_utils.filter_sim(sim_frame, step_size_rad, reciprocal_radius,dtype)]
-        for sim_frame in simulated
-    ]
-
-    # array to store final results
-    n_array = []
-
-    # Pre-compute exp3d and its mirror
-    # check for intensity dimension
-    if dimension == 3:
-        # slice out intensites
-        exp_intensities = [frame[:, 3] for frame in experimental]   # do it like this cause its inhomogeneous
-        exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:3], reciprocal_radius, dtype) for exp_vec in experimental]
-    else:  
-        exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
-    exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
-
-    if fast:
-        # parallelised method, very RAM demanding
-        n_array = Parallel(n_jobs=n_jobs) (
-        delayed(process_frames) (
-            exp3d=exp3d_all[idx],
-            exp3d_mirror=exp3d_mirror_all[idx],
-            sim_data=precomputed_data,
-            step_size_rad=step_size_rad,
-            n_best=n_best,
-            method=method,
-            distance_bound=distance_bound
-        ) for idx in tqdm(range(len(experimental)))
-    )
-        return np.stack(n_array)
-
-    else:
-        # slower method, but more light on RAM
-        for idx in tqdm(range(len(experimental))):
-
-            n_array.append(process_frames(
-                exp3d_all[idx], exp3d_mirror_all[idx], precomputed_data, step_size_rad, n_best,
-                method, distance_bound
-            ))
-        # returns nx4 array of shape (len(experimental), n_best, 4)
-        return np.stack(n_array)
-
 def _get_score_intensity(
     exp3d,
     exp_tree,
@@ -291,13 +189,13 @@ def _get_score_intensity(
 def score_intensity(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
+    exp_intensities: np.ndarray,
     sim_data_items,
-    exp_intensities: list,
     step_size_rad: float,
     distance_bound: float = 0.05,
-    intensity_norm_factor: float = 1,
-    intensity_weight: float = 1
-):
+    intensity_weight: float = 1,
+    intensity_norm_factor: float = 1
+) -> tuple:
 
     best_score, best_rotation, mirror = np.inf, 0.0, 0
 
@@ -341,7 +239,7 @@ def score_intensity(
 
 
 
-def _get_precomputed_data_for_intensites(
+def precompute_sim_data(
     simulated,
     step_size_rad,
     reciprocal_radius,
@@ -362,7 +260,7 @@ def _get_precomputed_data_for_intensites(
             # create dictionary
             current_rot_frame_data = {
                 'kdtree': None,
-                'coordinates': np.empty((0,3)),
+                'coordinates': np.empty((0,3), dtype=dtype),
                 'intensities': None,
                 'is_valid': False
             }
@@ -373,7 +271,7 @@ def _get_precomputed_data_for_intensites(
             
             # check for intensity dimension
             if rot_frame.shape[1] == 4:
-                current_rot_frame_data['intensities'] = rot_frame[:,3]
+                current_rot_frame_data['intensities'] = rot_frame[:,3].astype(dtype=dtype)
 
             processed_sim_frames.append(current_rot_frame_data)
 
@@ -385,24 +283,161 @@ def _get_precomputed_data_for_intensites(
 def process_frames(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
-    sim_data,
+    exp_intensities: np.ndarray,
+    sim_precomputed: list,
     step_size_rad: float,
     n_best: int,
     method: str="sum",
-    distance_bound: float = 0.05,
+    **kwargs
 ):
     iteration_results = []
 
-    for sim_idx, sim_tree_rotated in enumerate(sim_data):
-        best_score, best_rotation, mirror = np.inf, 0.0, 0
+    for sim_idx, sim_data in enumerate(sim_precomputed):
         if method == "sum":
+            sim_kdtrees = [item['kdtree'] for item in sim_data if item.get('kdtree')]
             best_score, best_rotation, mirror = sum_score(
-                exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad
+                exp3d, exp3d_mirror, sim_kdtrees, step_size_rad
             )
+
         elif method == "sum_score_weighted":
+            sim_kdtrees = [item['kdtree'] for item in sim_data if item.get('kdtree')]
             best_score, best_rotation, mirror = sum_score_weighted(
-                exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad, distance_bound
+                exp3d, exp3d_mirror, sim_kdtrees, step_size_rad, 
+                distance_bound=kwargs.get("distance_bound", 0.05) 
             )
+
+        elif method == "score_intensity":
+            best_score, best_rotation, mirror = score_intensity(
+                exp3d, 
+                exp3d_mirror,
+                exp_intensities,
+                sim_precomputed,
+                step_size_rad,
+                distance_bound=kwargs.get("distance_bound", 0.05),
+                intensity_weight=kwargs.get("intensity_weight", 1.0),
+                intensity_norm_factor=kwargs.get("intensity_norm_factor", 1.0)
+            )
+        else:
+            raise ValueError(f"Method {method} not supported")
+    
         iteration_results.append((sim_idx, best_score, best_rotation, mirror))
 
     return heapq.nsmallest(n_best, iteration_results, key=lambda x: x[1])
+
+def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
+    # validate experimental dimensions
+    if isinstance(experimental, np.ndarray) and experimental.ndim >= 2:
+        exp_dim = experimental.shape[-1]
+    elif isinstance(experimental, (list, np.ndarray)) and isinstance(experimental[0], np.ndarray):
+        exp_dim = experimental[0].shape[-1]
+    else:
+        raise ValueError("Unsupported dimension for 'experimental' input.")
+
+    # validate simulated dimensions
+    if isinstance(simulated, np.ndarray) and simulated.ndim >= 2:
+        sim_dim = simulated.shape[-1]
+    elif isinstance(simulated, (list, np.ndarray)) and isinstance(simulated[0], np.ndarray):
+        sim_dim = simulated[0].shape[-1]
+    else:
+        raise ValueError("Unsupported dimension for 'simulated' input.")
+
+    # validate equal dimensions
+    if exp_dim != sim_dim:
+        raise ValueError(
+            f"Mismatched input dimensions: experimental = {exp_dim}, simulated = {sim_dim}"
+        )
+
+    if exp_dim not in {2,3}:
+        raise ValueError(
+            f"Unsupported input dimension: {exp_dim}D. Only 2D (polar) or 3D (polar with intensities) supported."
+        )
+    return exp_dim
+
+
+def vector_match(
+    experimental: np.ndarray,
+    simulated: np.ndarray,
+    step_size: float, 
+    reciprocal_radius: float,
+    n_best: int,
+    method: str = "sum",
+    fast: bool = False,
+    n_jobs: int = -1,
+    distance_bound: float = 0.05,
+    intensity_weight: float = 1.0,
+    intensity_norm_factor: float = 1.0,
+    dtype=np.float64
+) -> np.ndarray:
+    """
+    Docstring
+    """
+    
+    # check correct dimensions of experimental and simulated
+    dimension = _validate_dimensions(experimental, simulated) 
+
+    # check for valid methods
+    valid_methods = {"sum_score", "sum_score_weighted", "score_intensity"}
+    if method not in valid_methods:
+        raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
+
+    # Convert input degrees to radians
+    step_size_rad = np.deg2rad(step_size)
+    # Precompute KD-trees for rotated simulated frames
+    precomputed_data = precompute_sim_data(simulated, step_size_rad, reciprocal_radius, dtype)
+    # precompute experimental
+
+    # array to store final results
+    n_array = []
+
+    if dimension == 3 and method == "score_intensity":
+        # 2D polar with intensity
+        exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:2], reciprocal_radius,dtype) for exp_vec in experimental]
+        exp_intensities = [frame[:, 2] for frame in experimental]
+    else:
+        # 2D polar only
+        exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
+        exp_intensities = [np.zeros(len(frame)) for frame in experimental] # set to zero as we're not dealing with it
+    # mirror version 
+    exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
+
+    kwargs = {
+        "distance_bound": distance_bound,
+    }
+
+    if method == "score_intensity":
+        kwargs["intensity_weight"] = intensity_weight
+        kwargs["intensity_norm_factor"] = intensity_norm_factor
+
+    if fast:
+        # parallelised method, very RAM demanding
+        n_array = Parallel(n_jobs=n_jobs) (
+        delayed(process_frames) (
+            exp3d=exp3d_all[idx],
+            exp3d_mirror=exp3d_mirror_all[idx],
+            exp_intensities=exp_intensities[idx],
+            sim_data=precomputed_data,
+            step_size_rad=step_size_rad,
+            n_best=n_best,
+            method=method,
+            **kwargs
+        ) for idx in tqdm(range(len(experimental)))
+    )
+        return np.stack(n_array)
+
+    else:
+        # slower method, but more light on RAM
+        for idx in tqdm(range(len(experimental))):
+            n_array.append(process_frames(
+                exp3d=exp3d_all[idx],
+                exp3d_mirror=exp3d_mirror_all[idx],
+                exp_intensities=exp_intensities[idx],
+                sim_precomputed=precomputed_data,
+                step_size_rad=step_size_rad,
+                n_best=n_best,
+                method=method,
+                **kwargs
+            ))
+        # returns nx4 array of shape (len(experimental), n_best, 4)
+        return np.stack(n_array)
+
+
