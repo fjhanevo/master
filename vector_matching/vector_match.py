@@ -1,4 +1,5 @@
 import heapq
+from hyperspy.component import export_to_dictionary
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
@@ -112,20 +113,6 @@ def _sum_score_weighted(
                 best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
 
-def score_intensity(    
-    exp3d: np.ndarray, 
-    exp3d_mirror: np.ndarray, 
-    sim_trees,
-    intensites,
-    step_size_rad: float,
-    distance_bound: float = 0.05
-) -> tuple:
-
-    # Copy intensities out of the stacked array
-    exp_intensities = np.copy(intensites[:,0])
-    sim_intensities = np.copy(intensites[:,1])
-
-
 def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
     # validate experimental dimensions
     if isinstance(experimental, np.ndarray) and experimental.ndim >= 2:
@@ -228,6 +215,169 @@ def vector_match(
         # returns nx4 array of shape (len(experimental), n_best, 4)
         return np.stack(n_array)
 
+def _get_score_intensity(
+    exp3d,
+    exp_tree,
+    exp_intensities,
+    sim_kdtree,
+    sim_coords,
+    sim_intensities,
+    n_total,
+    distance_bound,
+    intensity_weight,
+    intensity_norm_factor
+):
+    """
+    Helper function for score_intensity
+    """
+    dist_exp_to_sim, indices_sim_for_exp = sim_kdtree.query(exp3d, distance_upper_bound=distance_bound)
+    dist_sim_to_exp, indices_exp_for_sim = exp_tree.query(sim_coords, distance_upper_bound=distance_bound)
+
+    point_scores_exp_to_sim = np.full(len(exp3d), distance_bound, dtype=float)
+    matched_exp_mask = np.isfinite(dist_exp_to_sim) # mask for matched points
+
+    if np.any(matched_exp_mask):
+        dist_matched_exp = dist_exp_to_sim[matched_exp_mask]
+        current_score_exp = dist_matched_exp    # only considering distance in this step
+
+        # Add intensity if present
+        exp_intensities_matched = exp_intensities[matched_exp_mask]
+        sim_indices_matched = indices_sim_for_exp[matched_exp_mask]
+        sim_intensities_neighbour_matched = sim_intensities[sim_indices_matched]
+
+        intensity_diff = np.abs(exp_intensities_matched - sim_intensities_neighbour_matched)
+
+        intensity_penalty = intensity_weight * (intensity_diff / intensity_norm_factor)
+
+        current_score_exp += intensity_penalty
+
+        point_scores_exp_to_sim[matched_exp_mask] = current_score_exp
+
+    sum_scores_exp_to_sim = np.sum(point_scores_exp_to_sim)
+
+    # now we do the same process but in the other direction
+    point_scores_sim_to_exp = np.full(len(sim_coords), distance_bound, dtype=float)
+    matched_sim_mask = np.isfinite(dist_sim_to_exp)
+
+    if np.any(matched_sim_mask):
+        dist_matched_sim = dist_sim_to_exp[matched_sim_mask]
+        current_score_sim = dist_matched_sim
+
+        sim_intensities_matched = sim_intensities[matched_sim_mask]
+        exp_indices_matched = indices_exp_for_sim[matched_sim_mask]
+        exp_intensities_neighbour_matched = exp_intensities[exp_indices_matched]
+
+        intensity_diff_sim = np.abs(sim_intensities_matched - exp_intensities_neighbour_matched)
+
+        intensity_penalty_sim = intensity_weight * (intensity_diff_sim / intensity_norm_factor)
+
+        current_score_sim += intensity_penalty_sim
+
+        point_scores_sim_to_exp[matched_sim_mask] = current_score_sim
+
+    sum_scores_sim_to_exp = np.sum(point_scores_sim_to_exp)
+
+    return (sum_scores_exp_to_sim + sum_scores_sim_to_exp) / n_total
+
+
+
+def score_intensity(
+    exp3d,
+    exp3d_mirror,
+    sim_data_items,
+    exp_intensities,
+    step_size_rad,
+    distance_bound: float = 0.05,
+    intensity_norm_factor = 1,
+    intensity_weight = 1
+):
+
+    best_score, best_rotation, mirror = np.inf, 0.0, 0
+
+    exp_tree = cKDTree(exp3d)
+    exp_tree_mirror = cKDTree(exp3d_mirror)
+
+    for rot_idx, sim_data_item in enumerate(sim_data_items):
+        sim_kdtree = sim_data_item['kdtree']
+        sim_coords = sim_data_item['coordinates']
+        sim_intensities = sim_data_item['intensities']
+
+        # skip empty frames
+        if sim_kdtree is None or sim_coords.shape[0] == 0:
+            continue
+
+        n_total = len(exp3d) + len(sim_coords)
+
+        score_original = _get_score_intensity(
+            exp3d, exp_tree, exp_intensities, sim_kdtree, sim_coords, sim_intensities,
+            n_total,distance_bound, intensity_weight, intensity_norm_factor
+        )
+
+        score_mirror = _get_score_intensity(
+            exp3d_mirror, exp_tree_mirror, exp_intensities, sim_kdtree, sim_coords, sim_intensities,
+            n_total,distance_bound, intensity_weight, intensity_norm_factor
+        )
+
+        scores = [
+            (score_original, 1),
+            (score_mirror, -1)
+        ]
+
+        for score, mirror_flag in scores:
+            if score < best_score:
+                best_score = score
+                mirror = mirror_flag
+                best_rotation = vm_utils.wrap_degrees(rot_idx * step_size_rad, mirror)
+
+    return best_score, best_rotation, mirror
+
+
+
+
+def vector_match_intensity(
+    experimental,
+    simulated,
+    step_size,
+    reciprocal_radius,
+    n_best,
+    method,
+    n_jobs,
+    fast,
+    distance_bound,
+    dtype=np.float64
+):
+    """
+    Temporary main function for score_intensity
+    """
+
+    step_size_rad = np.deg2rad(step_size)
+    precomputed_sim_rotations = []
+
+    for sim_frame in simulated:
+        
+        # inner list to store processed frames
+        processed_sim_frames = []
+
+        for rot_frame in vm_utils.filter_sim(sim_frame, step_size_rad, reciprocal_radius, dtype):
+            # create dictionary
+            current_rot_frame_data = {
+                'kdtree': None,
+                'coordinates': np.empty((0,3)),
+                'intensities': None,
+                'is_valid': False
+            }
+
+            coords = rot_frame[:, :3]
+            current_rot_frame_data['kdtree'] = cKDTree(coords)
+            current_rot_frame_data['coordinates'] = coords
+            
+            # check for intensity dimension
+            if rot_frame.shape[1] == 4:
+                current_rot_frame_data['intensities'] = rot_frame[:,3]
+
+            processed_sim_frames.append(current_rot_frame_data)
+
+    precomputed_sim_rotations.append(precomputed_sim_rotations)
 
 def process_frames(
     exp3d: np.ndarray,
