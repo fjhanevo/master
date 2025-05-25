@@ -341,23 +341,16 @@ def score_intensity(
 
 
 
-def vector_match_intensity(
-    experimental,
+def _get_precomputed_data_for_intensites(
     simulated,
-    step_size,
+    step_size_rad,
     reciprocal_radius,
-    n_best,
-    method,
-    n_jobs,
-    fast,
-    distance_bound,
     dtype=np.float64
 ):
     """
-    Temporary main function for score_intensity
+    Helper function to precompute data for intensity method
     """
 
-    step_size_rad = np.deg2rad(step_size)
     precomputed_sim_rotations = []
 
     for sim_frame in simulated:
@@ -385,6 +378,9 @@ def vector_match_intensity(
             processed_sim_frames.append(current_rot_frame_data)
 
     precomputed_sim_rotations.append(precomputed_sim_rotations)
+
+    return precomputed_sim_rotations
+
 
 def process_frames(
     exp3d: np.ndarray,
