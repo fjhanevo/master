@@ -112,6 +112,20 @@ def _sum_score_weighted(
                 best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
 
+def score_intensity(    
+    exp3d: np.ndarray, 
+    exp3d_mirror: np.ndarray, 
+    sim_trees,
+    intensites,
+    step_size_rad: float,
+    distance_bound: float = 0.05
+) -> tuple:
+
+    # Copy intensities out of the stacked array
+    exp_intensities = np.copy(intensites[:,0])
+    sim_intensities = np.copy(intensites[:,1])
+
+
 def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
     # validate experimental dimensions
     if isinstance(experimental, np.ndarray) and experimental.ndim >= 2:
@@ -139,7 +153,7 @@ def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
         raise ValueError(
             f"Unsupported input dimension: {exp_dim}D. Only 2D (polar) or 3D (polar with intensities) supported."
         )
-
+    return exp_dim
 
 
 def vector_match(
@@ -159,7 +173,7 @@ def vector_match(
     """
     
     # check correct dimensions of experimental and simulated
-    _validate_dimensions(experimental, simulated) 
+    dimension = _validate_dimensions(experimental, simulated) 
 
     # check for valid methods
     valid_methods = {"sum_score", "sum_score_weighted"}
@@ -178,13 +192,20 @@ def vector_match(
     n_array = []
 
     # Pre-compute exp3d and its mirror
-    exp3d_all = [vm_utils._vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
+    # check for intensity dimension
+    if dimension == 3:
+        # slice out intensites
+        exp_intensities = [frame[:, 3] for frame in experimental]   # do it like this cause its inhomogeneous
+        sim_intensities = [frame[:, 3] for frame in simulated]  
+        exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:3], reciprocal_radius, dtype) for exp_vec in experimental]
+    else:  
+        exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
     exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
 
     if fast:
         # parallelised method, very RAM demanding
         n_array = Parallel(n_jobs=n_jobs) (
-        delayed(_process_frames) (
+        delayed(process_frames) (
             exp3d=exp3d_all[idx],
             exp3d_mirror=exp3d_mirror_all[idx],
             sim_data=precomputed_data,
@@ -200,7 +221,7 @@ def vector_match(
         # slower method, but more light on RAM
         for idx in tqdm(range(len(experimental))):
 
-            n_array.append(_process_frames(
+            n_array.append(process_frames(
                 exp3d_all[idx], exp3d_mirror_all[idx], precomputed_data, step_size_rad, n_best,
                 method, distance_bound
             ))
@@ -208,7 +229,7 @@ def vector_match(
         return np.stack(n_array)
 
 
-def _process_frames(
+def process_frames(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
     sim_data,
@@ -232,5 +253,3 @@ def _process_frames(
         iteration_results.append((sim_idx, best_score, best_rotation, mirror))
 
     return heapq.nsmallest(n_best, iteration_results, key=lambda x: x[1])
-
-             
