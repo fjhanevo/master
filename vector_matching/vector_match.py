@@ -231,55 +231,61 @@ def _get_score_intensity(
     Helper function for score_intensity
     """
     dist_exp_to_sim, indices_sim_for_exp = sim_kdtree.query(exp3d, distance_upper_bound=distance_bound)
-    dist_sim_to_exp, indices_exp_for_sim = exp_tree.query(sim_coords, distance_upper_bound=distance_bound)
 
-    point_scores_exp_to_sim = np.full(len(exp3d), distance_bound, dtype=float)
+    # initialise scores for each experimental and simulated point
+    point_scores_exp = np.zeros(len(exp3d), dtype=float)
     matched_exp_mask = np.isfinite(dist_exp_to_sim) # mask for matched points
+    unmatched_exp_mask = ~matched_exp_mask
 
+    # score for matched experimental points
     if np.any(matched_exp_mask):
-        dist_matched_exp = dist_exp_to_sim[matched_exp_mask]
-        current_score_exp = dist_matched_exp    # only considering distance in this step
-
-        # Add intensity if present
         exp_intensities_matched = exp_intensities[matched_exp_mask]
-        sim_indices_matched = indices_sim_for_exp[matched_exp_mask]
-        sim_intensities_neighbour_matched = sim_intensities[sim_indices_matched]
+        sim_indices_for_matched_exp = indices_sim_for_exp[matched_exp_mask]
+        sim_intensities_neighbours = sim_intensities[sim_indices_for_matched_exp]
 
-        intensity_diff = np.abs(exp_intensities_matched - sim_intensities_neighbour_matched)
+        intensity_diff_exp = np.abs(exp_intensities_matched - sim_intensities_neighbours)
 
-        intensity_penalty = intensity_weight * (intensity_diff / intensity_norm_factor)
+        score_matched_exp = intensity_weight * (intensity_diff_exp / intensity_norm_factor)
 
-        current_score_exp += intensity_penalty
+        point_scores_exp[matched_exp_mask] = score_matched_exp
 
-        point_scores_exp_to_sim[matched_exp_mask] = current_score_exp
+    # score for unmatched experimental points
+    if np.any(unmatched_exp_mask):
+        exp_intensities_unmatched = exp_intensities[unmatched_exp_mask]
+        unmatched_point_penalty_exp = intensity_weight * (exp_intensities_unmatched / intensity_norm_factor)
 
-    sum_scores_exp_to_sim = np.sum(point_scores_exp_to_sim)
+        point_scores_exp[unmatched_exp_mask] = unmatched_point_penalty_exp
 
-    # now we do the same process but in the other direction
-    point_scores_sim_to_exp = np.full(len(sim_coords), distance_bound, dtype=float)
+    sum_exp_score = np.sum(point_scores_exp)
+
+    # now we do the same for the simulated points
+    dist_sim_to_exp, indices_exp_for_sim = exp_tree.query(sim_coords, distance_upper_bound=distance_bound)
+    point_scores_sim = np.zeros(len(sim_coords), dtype=float)
+
     matched_sim_mask = np.isfinite(dist_sim_to_exp)
+    unmatched_sim_mask = ~matched_sim_mask
 
+    # score for matched simulated points
     if np.any(matched_sim_mask):
-        dist_matched_sim = dist_sim_to_exp[matched_sim_mask]
-        current_score_sim = dist_matched_sim
-
         sim_intensities_matched = sim_intensities[matched_sim_mask]
-        exp_indices_matched = indices_exp_for_sim[matched_sim_mask]
-        exp_intensities_neighbour_matched = exp_intensities[exp_indices_matched]
+        exp_indices_for_matched_sim = indices_exp_for_sim[matched_sim_mask]
+        exp_intensities_neighbours = exp_intensities[exp_indices_for_matched_sim]
 
-        intensity_diff_sim = np.abs(sim_intensities_matched - exp_intensities_neighbour_matched)
+        intensity_diff_sim = np.abs(sim_intensities_matched - exp_intensities_neighbours)
+        score_matched_sim = intensity_weight * (intensity_diff_sim / intensity_norm_factor)
+        point_scores_sim[matched_sim_mask] = score_matched_sim
 
-        intensity_penalty_sim = intensity_weight * (intensity_diff_sim / intensity_norm_factor)
+    # score for unmatched simulated points
+    if np.any(unmatched_sim_mask):
+        sim_intensities_unmatched = sim_intensities[unmatched_sim_mask]
+        unmatched_point_penalty_sim = intensity_weight * (sim_intensities_unmatched / intensity_norm_factor)
+        point_scores_sim[unmatched_sim_mask] = unmatched_point_penalty_sim
 
-        current_score_sim += intensity_penalty_sim
+    sum_sim_score = np.sum(point_scores_sim)
 
-        point_scores_sim_to_exp[matched_sim_mask] = current_score_sim
+    return (sum_exp_score + sum_sim_score) / n_total
 
-    sum_scores_sim_to_exp = np.sum(point_scores_sim_to_exp)
-
-    return (sum_scores_exp_to_sim + sum_scores_sim_to_exp) / n_total
-
-
+    
 
 def score_intensity(
     exp3d,
