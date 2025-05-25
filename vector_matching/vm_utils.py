@@ -93,7 +93,7 @@ def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtyp
     """
     sim_filtered = sim[~np.all(sim == 0, axis=1)]
 
-    sim_filtered_3d = _vector_to_3D(sim_filtered, reciprocal_radius, dtype)
+    sim_filtered_3d = vector_to_3D(sim_filtered, reciprocal_radius, dtype)
 
     return _full_z_rotation(sim_filtered_3d,step_size, dtype)
 
