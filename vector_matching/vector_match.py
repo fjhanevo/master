@@ -6,7 +6,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 import vm_utils
 
-def _sum_score(
+def sum_score(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
     sim_trees,
@@ -46,7 +46,29 @@ def _sum_score(
 
     return best_score, best_rotation, mirror
 
-def _sum_score_weighted(
+def _get_sum_score_weighted(
+    exp3d,
+    exp_tree,
+    sim_tree,
+    sim_points,
+    distance_bound
+) -> float:
+    # calculate nn distances both ways
+    dist_exp_to_sim, _ = sim_tree.query(exp3d, distance_upper_bound=distance_bound)
+    dist_sim_to_exp, _ = exp_tree.query(sim_points, distance_upper_bound=distance_bound)
+
+    # penalise unmatched points by treating their distance as distance_bound
+    dist_exp_to_sim_penalised = np.copy(dist_exp_to_sim)
+    dist_exp_to_sim_penalised[np.isinf(dist_exp_to_sim_penalised)] = distance_bound
+    dist_sim_to_exp_penalised = np.copy(dist_sim_to_exp)
+    dist_sim_to_exp_penalised[np.isinf(dist_sim_to_exp_penalised)] = distance_bound
+
+    score_exp = np.sum(dist_exp_to_sim_penalised)
+    score_sim = np.sum(dist_sim_to_exp_penalised)
+
+    return score_exp + score_sim
+
+def sum_score_weighted(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
     sim_trees,
@@ -71,38 +93,18 @@ def _sum_score_weighted(
         if n_total == 0:
             continue
 
+        score_original = _get_sum_score_weighted(
+            exp3d, exp_tree, sim_tree, sim_points, distance_bound
+        )
 
-        # calculate nn distances both ways
-        dist_exp_to_sim, _ = sim_tree.query(exp3d, distance_upper_bound=distance_bound)
-        dist_sim_to_exp, _ = exp_tree.query(sim_points, distance_upper_bound=distance_bound)
+        score_mirror = _get_sum_score_weighted(
+            exp3d_mirror, exp_tree_mirror, sim_tree, sim_points, distance_bound
+        )
 
-        # mirrored version
-        dist_exp_to_sim_m, _ = sim_tree.query(exp3d_mirror,distance_upper_bound=distance_bound)
-        dist_sim_to_exp_m, _ = exp_tree_mirror.query(sim_points,distance_upper_bound=distance_bound)
-
-        # penalise unmatched points by treating their distance as distance_bound
-        dist_exp_to_sim_penalised = np.copy(dist_exp_to_sim)
-        dist_exp_to_sim_penalised[np.isinf(dist_exp_to_sim_penalised)] = distance_bound
-        dist_sim_to_exp_penalised = np.copy(dist_sim_to_exp)
-        dist_sim_to_exp_penalised[np.isinf(dist_sim_to_exp_penalised)] = distance_bound
-
-        # mirrored version
-        dist_exp_to_sim_penalised_m = np.copy(dist_exp_to_sim_m)
-        dist_exp_to_sim_penalised_m[np.isinf(dist_exp_to_sim_penalised_m)] = distance_bound
-        dist_sim_to_exp_penalised_m = np.copy(dist_sim_to_exp_m)
-        dist_sim_to_exp_penalised_m[np.isinf(dist_sim_to_exp_penalised_m)] = distance_bound
-
-        # unmirrored score
-        score_exp = np.sum(dist_exp_to_sim_penalised)
-        score_sim = np.sum(dist_sim_to_exp_penalised)
-
-        # mirror score
-        score_exp_m = np.sum(dist_exp_to_sim_penalised_m)
-        score_sim_m = np.sum(dist_sim_to_exp_penalised_m)
-        
+                
         scores = [
-            ((score_exp + score_sim) / n_total, 1),
-            ((score_exp_m + score_sim_m) / n_total, -1),
+            ( score_original / n_total, 1),
+            (score_mirror / n_total, -1),
         ]
         # check score and keep only the best score for each sim_frame
         for score, mirror_flag in scores:
@@ -183,7 +185,6 @@ def vector_match(
     if dimension == 3:
         # slice out intensites
         exp_intensities = [frame[:, 3] for frame in experimental]   # do it like this cause its inhomogeneous
-        sim_intensities = [frame[:, 3] for frame in simulated]  
         exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:3], reciprocal_radius, dtype) for exp_vec in experimental]
     else:  
         exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
@@ -288,14 +289,14 @@ def _get_score_intensity(
     
 
 def score_intensity(
-    exp3d,
-    exp3d_mirror,
+    exp3d: np.ndarray,
+    exp3d_mirror: np.ndarray,
     sim_data_items,
-    exp_intensities,
-    step_size_rad,
+    exp_intensities: list,
+    step_size_rad: float,
     distance_bound: float = 0.05,
-    intensity_norm_factor = 1,
-    intensity_weight = 1
+    intensity_norm_factor: float = 1,
+    intensity_weight: float = 1
 ):
 
     best_score, best_rotation, mirror = np.inf, 0.0, 0
@@ -399,11 +400,11 @@ def process_frames(
     for sim_idx, sim_tree_rotated in enumerate(sim_data):
         best_score, best_rotation, mirror = np.inf, 0.0, 0
         if method == "sum":
-            best_score, best_rotation, mirror = _sum_score(
+            best_score, best_rotation, mirror = sum_score(
                 exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad
             )
         elif method == "sum_score_weighted":
-            best_score, best_rotation, mirror = _sum_score_weighted(
+            best_score, best_rotation, mirror = sum_score_weighted(
                 exp3d, exp3d_mirror, sim_tree_rotated, step_size_rad, distance_bound
             )
         iteration_results.append((sim_idx, best_score, best_rotation, mirror))
