@@ -239,7 +239,7 @@ def score_intensity(
 
 
 
-def precompute_sim_data(
+def _precompute_sim_data(
     simulated: np.ndarray,
     step_size_rad: float,
     reciprocal_radius: float,
@@ -383,11 +383,7 @@ def vector_match(
     # Convert input degrees to radians
     step_size_rad = np.deg2rad(step_size)
     # Precompute KD-trees for rotated simulated frames
-    precomputed_data = precompute_sim_data(simulated, step_size_rad, reciprocal_radius, dtype)
-    # precompute experimental
-
-    # array to store final results
-    n_array = []
+    precomputed_data = _precompute_sim_data(simulated, step_size_rad, reciprocal_radius, dtype)
 
     if dimension == 3 and method == "score_intensity":
         # 2D polar with intensity
@@ -408,6 +404,9 @@ def vector_match(
         kwargs["intensity_weight"] = intensity_weight
         kwargs["intensity_norm_factor"] = intensity_norm_factor
 
+    # array to store final results
+    n_array = []
+
     if fast:
         # parallelised method, very RAM demanding
         n_array = Parallel(n_jobs=n_jobs) (
@@ -415,14 +414,13 @@ def vector_match(
             exp3d=exp3d_all[idx],
             exp3d_mirror=exp3d_mirror_all[idx],
             exp_intensities=exp_intensities[idx],
-            sim_data=precomputed_data,
+            sim_precomputed=precomputed_data,
             step_size_rad=step_size_rad,
             n_best=n_best,
             method=method,
             **kwargs
         ) for idx in tqdm(range(len(experimental)))
     )
-        return np.stack(n_array)
 
     else:
         # slower method, but more light on RAM
@@ -438,6 +436,6 @@ def vector_match(
                 **kwargs
             ))
         # returns nx4 array of shape (len(experimental), n_best, 4)
-        return np.stack(n_array)
+    return np.stack(n_array)
 
 
