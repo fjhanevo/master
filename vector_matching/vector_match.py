@@ -1,6 +1,7 @@
 import heapq
 import numpy as np
 from scipy.spatial import cKDTree
+from numba import njit
 from tqdm import tqdm
 from joblib import Parallel, delayed
 import vm_utils
@@ -8,7 +9,7 @@ import vm_utils
 def sum_score(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
-    sim_trees,
+    sim_trees: list,
     step_size_rad: float
 ) -> tuple:
     """
@@ -70,7 +71,7 @@ def _get_sum_score_weighted(
 def sum_score_weighted(
     exp3d: np.ndarray, 
     exp3d_mirror: np.ndarray, 
-    sim_trees,
+    sim_trees: list,
     step_size_rad: float,
     distance_bound: float = 0.05
 ) -> tuple:
@@ -113,6 +114,99 @@ def sum_score_weighted(
                 mirror = mirror_flag
                 best_rotation = vm_utils.wrap_degrees(ang, mirror)
     return best_score, best_rotation, mirror
+
+@njit
+def _get_score_ang(
+    exp_vecs: np.ndarray,
+    sim_vecs: np.ndarray,
+    ang_thresh_rad:float,
+    n_total: float
+): 
+
+    matched_angles = []
+    unmatched_exp = 0
+    # experimental points 
+    for exp_vec in exp_vecs:
+        # for njit
+        sim_vecs = np.ascontiguousarray(sim_vecs)
+        exp_vec = np.ascontiguousarray(exp_vec)
+
+        dots = np.clip(sim_vecs @ exp_vec, -1.0, 1.0)
+        angles = np.arccos(dots)
+        min_angle = np.min(angles)
+        if min_angle < ang_thresh_rad:
+            matched_angles.append(min_angle)
+        else:
+            # penalise unmatched points by ang_thresh_rad
+            unmatched_exp += ang_thresh_rad 
+
+    # now the other direction
+    unmatched_sim = 0
+    for sim_vec in sim_vecs:
+        # for njit
+        sim_vec = np.ascontiguousarray(sim_vec)
+        exp_vecs = np.ascontiguousarray(exp_vecs)
+
+        dots = np.clip(exp_vecs @ sim_vec, -1.0, 1.0)
+        angles = np.arccos(dots)
+        min_angle = np.min(angles)
+        if min_angle >= ang_thresh_rad:
+            unmatched_sim += ang_thresh_rad
+
+    penalty = unmatched_exp + unmatched_sim
+    if len(matched_angles) > 0:
+        # get the mean score
+        score = sum(matched_angles) / len(matched_angles)
+    else: 
+        score = np.pi
+    score += penalty
+    # return normalised score
+    return score / n_total
+
+def score_ang(
+    exp3d: np.ndarray,
+    exp3d_mirror: np.ndarray,
+    sim_data: list,
+    step_size_rad: float,
+    ang_thresh_rad: float,
+) ->tuple:
+    best_score, best_rotation, mirror = np.inf, 0.0, 0
+
+    for rot_idx, sim_coords in enumerate(sim_data):
+        sim_coord = sim_coords 
+
+        # skip empty frames
+        if sim_coords.shape[0] == 0:
+            continue
+
+        n_total = len(exp3d) + len(sim_coords)
+
+        score_original = _get_score_ang(
+            exp_vecs=exp3d,
+            sim_vecs=sim_coord,
+            ang_thresh_rad=ang_thresh_rad,
+            n_total=n_total
+        )
+        score_mirror= _get_score_ang(
+            exp_vecs=exp3d_mirror,
+            sim_vecs=sim_coord,
+            ang_thresh_rad=ang_thresh_rad,
+            n_total=n_total
+        )
+
+        scores = [
+            (score_original, 1),
+            (score_mirror, -1)
+        ]
+
+        for score, mirror_flag in scores:
+            if score < best_score:
+                best_score = score
+                mirror = mirror_flag
+                best_rotation = vm_utils.wrap_degrees(rot_idx * step_size_rad, mirror)
+
+    return best_score, best_rotation, mirror
+
 
 def _get_score_intensity(
     exp3d,
@@ -236,9 +330,6 @@ def score_intensity(
 
     return best_score, best_rotation, mirror
 
-
-
-
 def _precompute_sim_data(
     simulated: np.ndarray,
     step_size_rad: float,
@@ -265,6 +356,7 @@ def _precompute_sim_data(
                 'is_valid': False
             }
 
+            # print(rot_frame.shape[1])
             coords = rot_frame[:, :3]
             current_rot_frame_data['kdtree'] = cKDTree(coords)
             current_rot_frame_data['coordinates'] = coords
@@ -289,40 +381,59 @@ def process_frames(
     n_best: int,
     method: str="sum",
     **kwargs
-):
+) -> list:
     iteration_results = []
 
     for sim_idx, sim_data in enumerate(sim_precomputed):
         if method == "sum":
             sim_kdtrees = [item['kdtree'] for item in sim_data if item.get('kdtree')]
             best_score, best_rotation, mirror = sum_score(
-                exp3d, exp3d_mirror, sim_kdtrees, step_size_rad
+                exp3d=exp3d,
+                exp3d_mirror=exp3d_mirror,
+                sim_trees=sim_kdtrees,
+                step_size_rad=step_size_rad
             )
 
         elif method == "sum_score_weighted":
             sim_kdtrees = [item['kdtree'] for item in sim_data if item.get('kdtree')]
             best_score, best_rotation, mirror = sum_score_weighted(
-                exp3d, exp3d_mirror, sim_kdtrees, step_size_rad, 
-                distance_bound=kwargs.get("distance_bound", 0.05) 
+                exp3d=exp3d,
+                exp3d_mirror=exp3d_mirror,
+                sim_trees=sim_kdtrees,
+                step_size_rad=step_size_rad,
+                distance_bound=kwargs.get("distance_bound", 0.05)
+
+            )
+
+        elif method == "score_ang":
+            sim_coords = [item['coordinates'] for item in sim_data if item.get('coordinates') is not None]
+            sim_coords = sim_coords
+            best_score, best_rotation, mirror = score_ang(
+                exp3d=exp3d,
+                exp3d_mirror=exp3d_mirror,
+                sim_data=sim_coords,
+                step_size_rad=step_size_rad,
+                ang_thresh_rad=kwargs.get("ang_thresh_rad", 0.05)
             )
 
         elif method == "score_intensity":
             best_score, best_rotation, mirror = score_intensity(
-                exp3d, 
-                exp3d_mirror,
-                exp_intensities,
-                sim_precomputed,
-                step_size_rad,
+                exp3d=exp3d,
+                exp3d_mirror=exp3d_mirror,
+                exp_intensities=exp_intensities,
+                sim_data_items=sim_data,
+                step_size_rad=step_size_rad,
                 distance_bound=kwargs.get("distance_bound", 0.05),
                 intensity_weight=kwargs.get("intensity_weight", 1.0),
                 intensity_norm_factor=kwargs.get("intensity_norm_factor", 1.0)
             )
         else:
-            raise ValueError(f"Method {method} not supported")
+            raise ValueError(f"Method {method} not supported.")
     
         iteration_results.append((sim_idx, best_score, best_rotation, mirror))
 
-    return heapq.nsmallest(n_best, iteration_results, key=lambda x: x[1])
+    # sort after ascending score
+    return heapq.nsmallest(n_best, iteration_results, key=lambda x : x[1])
 
 def _validate_dimensions(experimental: np.ndarray, simulated:np.ndarray):
     # validate experimental dimensions
@@ -366,6 +477,7 @@ def vector_match(
     distance_bound: float = 0.05,
     intensity_weight: float = 1.0,
     intensity_norm_factor: float = 1.0,
+    ang_thresh_rad: float = 0.05,
     dtype=np.float64
 ) -> np.ndarray:
     """
@@ -376,25 +488,31 @@ def vector_match(
     dimension = _validate_dimensions(experimental, simulated) 
 
     # check for valid methods
-    valid_methods = {"sum_score", "sum_score_weighted", "score_intensity"}
+    valid_methods = {"sum_score", "sum_score_weighted", "score_ang" ,"score_intensity"}
     if method not in valid_methods:
         raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
 
-    # Convert input degrees to radians
-    step_size_rad = np.deg2rad(step_size)
-    # Precompute KD-trees for rotated simulated frames
-    precomputed_data = _precompute_sim_data(simulated, step_size_rad, reciprocal_radius, dtype)
+    if method == "score_ang" and fast:
+        raise ValueError(f"Method: {method} does not support fast == {fast}, set fast == False")
 
     if dimension == 3 and method == "score_intensity":
         # 2D polar with intensity
         exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:2], reciprocal_radius,dtype) for exp_vec in experimental]
         exp_intensities = [frame[:, 2] for frame in experimental]
-    else:
+    elif dimension == 2:
         # 2D polar only
         exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
         exp_intensities = [np.zeros(len(frame)) for frame in experimental] # set to zero as we're not dealing with it
+    else:
+        raise ValueError(f"Wrong dimension: {dimension}D for method: {method}")
     # mirror version 
     exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
+
+
+    # Convert input degrees to radians
+    step_size_rad = np.deg2rad(step_size)
+    # Precompute KD-trees for rotated simulated frames
+    precomputed_data = _precompute_sim_data(simulated, step_size_rad, reciprocal_radius, dtype)
 
     kwargs = {
         "distance_bound": distance_bound,
@@ -403,6 +521,8 @@ def vector_match(
     if method == "score_intensity":
         kwargs["intensity_weight"] = intensity_weight
         kwargs["intensity_norm_factor"] = intensity_norm_factor
+    elif method == "score_ang":
+        kwargs["ang_thresh_rad"] = ang_thresh_rad
 
     # array to store final results
     n_array = []
