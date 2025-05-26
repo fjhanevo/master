@@ -4,7 +4,6 @@ from orix.vector import Vector3d
 import matplotlib.pyplot as plt
 import numpy as np
 
-#NOTE: Don't use this for ipf just use font.size!!
 params = {
     'figure.figsize':(8.0,4.0), 'axes.grid': True,
     'lines.markersize': 8, 'lines.linewidth': 2,
@@ -55,14 +54,20 @@ def plot_spheres_to_gif(s1:np.ndarray,s2:np.ndarray,labels:tuple) -> None:
 def plot_spheres_with_axis_lims(s1:np.ndarray, s2:np.ndarray,labels:tuple) -> None:
     l1, l2,  = labels
     ax = plt.axes(projection='3d')
-    ax.scatter3D(s1[...,0], s1[...,1], s1[...,2], label=l1)
-    ax.scatter3D(s2[...,0], s2[...,1], s2[...,2], label=l2)
+    marker_size = 100
+    ax.view_init(elev=43, azim=-74, roll=0)
+    ax.scatter3D(s1[...,0], s1[...,1], s1[...,2], label=l1, s=marker_size)
+    ax.scatter3D(s2[...,0], s2[...,1], s2[...,2], label=l2, s=marker_size)
 
     ax.grid(visible=False)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
+    # ax.set_xlabel('x')
+    # ax.set_ylabel('y')
+    # ax.set_zlabel('z')
+    
 
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
 
     ax.set_xlim([-0.9,0.9])
     ax.set_ylim([-0.7,0.7])
