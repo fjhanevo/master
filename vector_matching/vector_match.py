@@ -240,11 +240,11 @@ def score_intensity(
 
 
 def precompute_sim_data(
-    simulated,
-    step_size_rad,
-    reciprocal_radius,
+    simulated: np.ndarray,
+    step_size_rad: float,
+    reciprocal_radius: float,
     dtype=np.float64
-):
+) -> list:
     """
     Helper function to precompute data for intensity method
     """
@@ -275,7 +275,7 @@ def precompute_sim_data(
 
             processed_sim_frames.append(current_rot_frame_data)
 
-    precomputed_sim_rotations.append(precomputed_sim_rotations)
+        precomputed_sim_rotations.append(processed_sim_frames)
 
     return precomputed_sim_rotations
 
