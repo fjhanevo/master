@@ -1,7 +1,6 @@
 import numpy as np
 from numba import njit
 
-
 def vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype) -> np.ndarray:
     """
     Takes in a 2D polar vector and converts it to 
@@ -93,10 +92,23 @@ def filter_sim(sim: np.ndarray, step_size: float, reciprocal_radius: float, dtyp
     """
     sim_filtered = sim[~np.all(sim == 0, axis=1)]
 
-    sim_filtered_3d = vector_to_3D(sim_filtered, reciprocal_radius, dtype)
+    if sim.shape[1] == 3:
+        intensities = sim_filtered[:, 2].reshape(-1,1)   # extract intensites
+        sim_filtered_3d = vector_to_3D(sim_filtered[:, :2], reciprocal_radius, dtype) # only pass 2D coords
 
-    return _full_z_rotation(sim_filtered_3d,step_size, dtype)
+        # fully rotate the current frame without intensities
+        sim_filtered_3d_rotated = _full_z_rotation(sim_filtered_3d, step_size, dtype)
+        # expand intensities
+        intensities_expanded = intensities[None, : , :]
+        intensities_tiled = np.tile(intensities_expanded, (sim_filtered_3d_rotated.shape[0], 1, 1))
+        # now pop intensities back in
+        return np.concatenate((sim_filtered_3d_rotated, intensities_tiled), axis=-1)
 
+    else:
+        sim_filtered_3d = vector_to_3D(sim_filtered, reciprocal_radius, dtype)
+        return _full_z_rotation(sim_filtered_3d,step_size, dtype)
+
+# nitro boost
 @njit
 def wrap_degrees(angle_rad: float, mirror: int) -> int:
     """
