@@ -211,16 +211,17 @@ def score_ang(
     return best_score, best_rotation, mirror
 
 def _get_score_intensity(
-    exp3d,
-    exp_tree,
-    exp_intensities,
-    sim_kdtree,
-    sim_coords,
-    sim_intensities,
-    n_total,
-    distance_bound,
-    intensity_weight,
-    intensity_norm_factor
+    exp3d: np.ndarray,
+    exp_tree: cKDTree,
+    exp_intensities: np.ndarray,
+
+    sim_kdtree: cKDTree,
+    sim_coords: np.ndarray,
+    sim_intensities: np.ndarray,
+
+    n_total: float,
+    distance_bound: float,
+    intensity_weight: float,
 ):
     """
     Helper function for score_intensity
@@ -240,7 +241,7 @@ def _get_score_intensity(
 
         intensity_diff_exp = np.abs(exp_intensities_matched - sim_intensities_neighbours)
 
-        score_matched_exp = intensity_weight * (intensity_diff_exp / intensity_norm_factor)
+        score_matched_exp = intensity_weight * intensity_diff_exp
 
         point_scores_exp[matched_exp_mask] = score_matched_exp
 
@@ -267,7 +268,7 @@ def _get_score_intensity(
         exp_intensities_neighbours = exp_intensities[exp_indices_for_matched_sim]
 
         intensity_diff_sim = np.abs(sim_intensities_matched - exp_intensities_neighbours)
-        score_matched_sim = intensity_weight * (intensity_diff_sim / intensity_norm_factor)
+        score_matched_sim = intensity_weight * intensity_diff_sim 
         point_scores_sim[matched_sim_mask] = score_matched_sim
 
     # score for unmatched simulated points
@@ -286,17 +287,21 @@ def score_intensity(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
     exp_intensities: np.ndarray,
-    sim_data_items,
+    sim_data_items: list,
     step_size_rad: float,
     distance_bound: float = 0.05,
     intensity_weight: float = 1,
-    intensity_norm_factor: float = 1
 ) -> tuple:
 
     best_score, best_rotation, mirror = np.inf, 0.0, 0
 
     exp_tree = cKDTree(exp3d)
     exp_tree_mirror = cKDTree(exp3d_mirror)
+
+    exp_intensity_max = np.max(exp_intensities)
+    
+    # noralise experimental intensities to range 0 to 1 
+    exp_intensities_normalised = np.clip(exp_intensities / exp_intensity_max, 0.0, 1.0)
 
     for rot_idx, sim_data_item in enumerate(sim_data_items):
         sim_kdtree = sim_data_item['kdtree']
@@ -307,16 +312,38 @@ def score_intensity(
         if sim_kdtree is None or sim_coords.shape[0] == 0:
             continue
 
+        # normalise simulated intensities (sets intensities to range 0 to 1)
+        sim_intensity_max = np.max(sim_intensities)
+        sim_intensities_normalised = np.clip(sim_intensities / sim_intensity_max, 0.0, 1.0)
+
         n_total = len(exp3d) + len(sim_coords)
 
         score_original = _get_score_intensity(
-            exp3d, exp_tree, exp_intensities, sim_kdtree, sim_coords, sim_intensities,
-            n_total,distance_bound, intensity_weight, intensity_norm_factor
+            exp3d=exp3d,
+            exp_tree=exp_tree,
+            exp_intensities=exp_intensities_normalised,
+
+            sim_kdtree=sim_kdtree,
+            sim_coords=sim_coords,
+            sim_intensities=sim_intensities_normalised,
+
+            n_total=n_total,
+            distance_bound=distance_bound,
+            intensity_weight=intensity_weight
         )
 
         score_mirror = _get_score_intensity(
-            exp3d_mirror, exp_tree_mirror, exp_intensities, sim_kdtree, sim_coords, sim_intensities,
-            n_total,distance_bound, intensity_weight, intensity_norm_factor
+            exp3d=exp3d_mirror,
+            exp_tree=exp_tree_mirror,
+            exp_intensities=exp_intensities_normalised,
+
+            sim_kdtree=sim_kdtree,
+            sim_coords=sim_coords,
+            sim_intensities=sim_intensities_normalised,
+
+            n_total=n_total,
+            distance_bound=distance_bound,
+            intensity_weight=intensity_weight
         )
 
         scores = [
