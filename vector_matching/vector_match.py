@@ -248,7 +248,7 @@ def _get_score_intensity(
     # score for unmatched experimental points
     if np.any(unmatched_exp_mask):
         exp_intensities_unmatched = exp_intensities[unmatched_exp_mask]
-        unmatched_point_penalty_exp = intensity_weight * (exp_intensities_unmatched / intensity_norm_factor)
+        unmatched_point_penalty_exp = intensity_weight * exp_intensities_unmatched
 
         point_scores_exp[unmatched_exp_mask] = unmatched_point_penalty_exp
 
@@ -274,7 +274,7 @@ def _get_score_intensity(
     # score for unmatched simulated points
     if np.any(unmatched_sim_mask):
         sim_intensities_unmatched = sim_intensities[unmatched_sim_mask]
-        unmatched_point_penalty_sim = intensity_weight * (sim_intensities_unmatched / intensity_norm_factor)
+        unmatched_point_penalty_sim = intensity_weight * sim_intensities_unmatched 
         point_scores_sim[unmatched_sim_mask] = unmatched_point_penalty_sim
 
     sum_sim_score = np.sum(point_scores_sim)
@@ -291,6 +291,8 @@ def score_intensity(
     step_size_rad: float,
     distance_bound: float = 0.05,
     intensity_weight: float = 1,
+    exp_max_intensity: float = 1.0,
+    sim_max_intensity: float = 1.0,
 ) -> tuple:
 
     best_score, best_rotation, mirror = np.inf, 0.0, 0
@@ -298,10 +300,8 @@ def score_intensity(
     exp_tree = cKDTree(exp3d)
     exp_tree_mirror = cKDTree(exp3d_mirror)
 
-    exp_intensity_max = np.max(exp_intensities)
-    
     # noralise experimental intensities to range 0 to 1 
-    exp_intensities_normalised = np.clip(exp_intensities / exp_intensity_max, 0.0, 1.0)
+    exp_intensities_normalised = np.clip(exp_intensities / exp_max_intensity, 0.0, 1.0)
 
     for rot_idx, sim_data_item in enumerate(sim_data_items):
         sim_kdtree = sim_data_item['kdtree']
@@ -313,8 +313,7 @@ def score_intensity(
             continue
 
         # normalise simulated intensities (sets intensities to range 0 to 1)
-        sim_intensity_max = np.max(sim_intensities)
-        sim_intensities_normalised = np.clip(sim_intensities / sim_intensity_max, 0.0, 1.0)
+        sim_intensities_normalised = np.clip(sim_intensities / sim_max_intensity, 0.0, 1.0)
 
         n_total = len(exp3d) + len(sim_coords)
 
@@ -453,7 +452,8 @@ def process_frames(
                 step_size_rad=step_size_rad,
                 distance_bound=kwargs.get("distance_bound", 0.05),
                 intensity_weight=kwargs.get("intensity_weight", 1.0),
-                intensity_norm_factor=kwargs.get("intensity_norm_factor", 1.0)
+                exp_max_intensity=kwargs.get("exp_max_intensity", 1.0),
+                sim_max_intensity=kwargs.get("sim_max_intensity", 1.0)
             )
         else:
             raise ValueError(f"Method {method} not supported.")
@@ -549,6 +549,11 @@ def vector_match(
     if method == "score_intensity":
         kwargs["intensity_weight"] = intensity_weight
         kwargs["intensity_norm_factor"] = intensity_norm_factor
+        # compute global max intensities for normalising intensities
+        exp_avg_intensity = [np.mean(frame[:, -1]) for frame in experimental]
+        sim_avg_intensity = np.mean(simulated[:, :, -1], axis=1)
+        kwargs["exp_intensity_max"] = np.max(exp_avg_intensity)
+        kwargs["sim_intensity_max"] = np.max(sim_avg_intensity)
     elif method == "score_ang":
         kwargs["ang_thresh_rad"] = ang_thresh_rad
 
