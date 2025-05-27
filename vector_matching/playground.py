@@ -127,46 +127,14 @@ if __name__ == '__main__':
     exp_intensity = np.load(DIR_NPY+FILE_INTENSITY,allow_pickle=True)
     sim_intensity = np.load(DIR_NPY+FILE_SIM_INTENSITY,allow_pickle=True)
 
-    # exp_to_be_matched = experimental[exp_frame]
-    # exp3d = np.array([sm.vector_to_3D(exp_vec, reciprocal_radius) for exp_vec in exp_to_be_matched])
-    # frame, score, rotation, mirror = match_one_frame([exp_to_be_matched], simulated,step_size, reciprocal_radius, n_best, method=1)
-    # frame = 1087
-    # rotation = 288.5
-    # mirror = -1.0
-    # lbls = ('experimental', 'simulated')
-    # plotting.plot_two_spheres(exp3d, simulated[frame], lbls)
-    # sim3d = np.array([sm.vector_to_3D(sim_vec, reciprocal_radius) for sim_vec in simulated[frame]])
-    # exp_and_sim_sphere_plot(exp_to_be_matched, simulated[frame],0, reciprocal_radius, mirror, lbls)
-    # exp_and_sim_sphere_plot(exp_to_be_matched, simulated[frame],rotation, reciprocal_radius, mirror, lbls)
-    # exp_avg_intensity = [
-    #     np.mean(frame[:,-1]) if frame.shape[1] >= 3 else 0.0
-    #     for frame in exp_intensity
-    # ]
-    #
-    # sim_avg_intensity = np.mean(sim_intensity[:,:,-1], axis=1)
-    # sim_intensity_normalised = sim_avg_intensity / np.max(sim_avg_intensity)
-    # print(f"exp_intensity: {exp_avg_intensity}")
-    # print(f"sim_intensity: {sim_intensity_normalised}")
-
-    # n_array = vm.vector_match(
-    #     exp_intensity,
-    #     sim_intensity, 
-    #     200,
-    #     reciprocal_radius,
-    #     n_best, 
-    #     method="score_intensity",
-    #     fast=False
-    # )
-    # print(n_array.shape)
-
     ### CREATE NEW FILES ### 
-    # filename = '260525_vector_match_ang_score_step05deg_ang_thresh005.npy'
-    # create_and_save_dataset(
-    #     experimental,
-    #     simulated, 
-    #     step_size,
-    #     reciprocal_radius,
-    #     n_best, 
-    #     method="score_ang",
-    #     filename=DIR_NPY+filename,
-    # )
+    filename = '270525_vector_match_score_intensity_step05deg_dist005.npy'
+    create_and_save_dataset(
+        exp_intensity,
+        sim_intensity, 
+        step_size,
+        reciprocal_radius,
+        n_best, 
+        method="score_intensity",
+        filename=DIR_NPY+filename,
+    )
