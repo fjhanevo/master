@@ -284,15 +284,21 @@ def plot_compare_misorientation_scatter(data1, data2, data3, lbls:tuple, clrs:tu
     plt.show()
 
 def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
+    from matplotlib import cm
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
     loris = data.to_single_phase_orientations()
     num_frames = data.axes_manager.navigation_shape[0]
+
+    colors = cm.get_cmap(cmap)(np.linspace(0,1,num_frames))
+    
     for idx in range(num_frames):
-        correlations = data.inav[idx].data[:,1]
         loris_best = loris[idx, 0]
-        ax.scatter(loris_best, c=correlations, cmap=cmap)
+        ax.scatter(loris_best, color=[colors[idx]])
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=num_frames-1))
+    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', label='Frame index')
     plt.tight_layout()
     plt.show()
 
@@ -304,11 +310,13 @@ def plot_ipf_misorientations(data, phase, cmap):
     loris = data.to_single_phase_orientations()
     num_frames = data.axes_manager.navigation_shape[0]
 
+
     for idx in range(num_frames):
-        correlations = data.inav[idx].data[:,1]
+        # correlations = data.inav[idx].data[:,1]
         loris_best = loris[:, 0]
         loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
-        ax.scatter(loris_ang[idx,0], c=correlations, cmap=cmap)
+        ax.scatter(loris_ang[idx,0], c=colors[idx])
+
     plt.tight_layout()
     plt.show()
 
