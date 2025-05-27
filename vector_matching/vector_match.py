@@ -124,16 +124,19 @@ def _get_score_ang(
 ): 
 
     matched_angles = []
-    unmatched_exp = 0
-    # experimental points 
-    for exp_vec in exp_vecs:
-        # for njit
-        sim_vecs = np.ascontiguousarray(sim_vecs)
-        exp_vec = np.ascontiguousarray(exp_vec)
+    unmatched_exp = 0.0
 
+    # for njit
+    sim_vecs_cont = np.ascontiguousarray(sim_vecs)
+    exp_vecs_cont = np.ascontiguousarray(exp_vecs)
+    # experimental points 
+    for i in range(exp_vecs.shape[0]):
+        exp_vec = exp_vecs_cont[i, :]
+
+        # dot product for one experimental vector againt all simulated vectors
         dots = np.clip(sim_vecs @ exp_vec, -1.0, 1.0)
         angles = np.arccos(dots)
-        min_angle = np.min(angles)
+        min_angle = np.min(angles)  # only keep the smallest angle
         if min_angle < ang_thresh_rad:
             matched_angles.append(min_angle)
         else:
@@ -141,12 +144,12 @@ def _get_score_ang(
             unmatched_exp += ang_thresh_rad 
 
     # now the other direction
-    unmatched_sim = 0
-    for sim_vec in sim_vecs:
+    unmatched_sim = 0.0
+    for i in range(sim_vecs.shape[0]):
         # for njit
-        sim_vec = np.ascontiguousarray(sim_vec)
-        exp_vecs = np.ascontiguousarray(exp_vecs)
+        sim_vec = sim_vecs_cont[i, :]
 
+        # dot product for one simulated vector against all experimental vectors
         dots = np.clip(exp_vecs @ sim_vec, -1.0, 1.0)
         angles = np.arccos(dots)
         min_angle = np.min(angles)
@@ -158,7 +161,7 @@ def _get_score_ang(
         # get the mean score
         score = sum(matched_angles) / len(matched_angles)
     else: 
-        score = np.pi
+        score = np.pi   # assign a high score if no matches are found
     score += penalty
     # return normalised score
     return score / n_total
@@ -206,7 +209,6 @@ def score_ang(
                 best_rotation = vm_utils.wrap_degrees(rot_idx * step_size_rad, mirror)
 
     return best_score, best_rotation, mirror
-
 
 def _get_score_intensity(
     exp3d,
@@ -371,7 +373,6 @@ def _precompute_sim_data(
 
     return precomputed_sim_rotations
 
-
 def process_frames(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
@@ -379,13 +380,13 @@ def process_frames(
     sim_precomputed: list,
     step_size_rad: float,
     n_best: int,
-    method: str="sum",
+    method: str="sum_score",
     **kwargs
 ) -> list:
     iteration_results = []
 
     for sim_idx, sim_data in enumerate(sim_precomputed):
-        if method == "sum":
+        if method == "sum_score":
             sim_kdtrees = [item['kdtree'] for item in sim_data if item.get('kdtree')]
             best_score, best_rotation, mirror = sum_score(
                 exp3d=exp3d,
