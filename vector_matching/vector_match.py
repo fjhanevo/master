@@ -221,7 +221,6 @@ def _get_score_intensity(
 
     n_total: float,
     distance_bound: float,
-    intensity_weight: float,
 ):
     """
     Helper function for score_intensity
@@ -241,14 +240,14 @@ def _get_score_intensity(
 
         intensity_diff_exp = np.abs(exp_intensities_matched - sim_intensities_neighbours)
 
-        score_matched_exp = intensity_weight * intensity_diff_exp
+        score_matched_exp =  intensity_diff_exp
 
         point_scores_exp[matched_exp_mask] = score_matched_exp
 
     # score for unmatched experimental points
     if np.any(unmatched_exp_mask):
         exp_intensities_unmatched = exp_intensities[unmatched_exp_mask]
-        unmatched_point_penalty_exp = intensity_weight * exp_intensities_unmatched
+        unmatched_point_penalty_exp = exp_intensities_unmatched
 
         point_scores_exp[unmatched_exp_mask] = unmatched_point_penalty_exp
 
@@ -268,13 +267,13 @@ def _get_score_intensity(
         exp_intensities_neighbours = exp_intensities[exp_indices_for_matched_sim]
 
         intensity_diff_sim = np.abs(sim_intensities_matched - exp_intensities_neighbours)
-        score_matched_sim = intensity_weight * intensity_diff_sim 
+        score_matched_sim = intensity_diff_sim 
         point_scores_sim[matched_sim_mask] = score_matched_sim
 
     # score for unmatched simulated points
     if np.any(unmatched_sim_mask):
         sim_intensities_unmatched = sim_intensities[unmatched_sim_mask]
-        unmatched_point_penalty_sim = intensity_weight * sim_intensities_unmatched 
+        unmatched_point_penalty_sim = sim_intensities_unmatched 
         point_scores_sim[unmatched_sim_mask] = unmatched_point_penalty_sim
 
     sum_sim_score = np.sum(point_scores_sim)
@@ -290,7 +289,6 @@ def score_intensity(
     sim_data_items: list,
     step_size_rad: float,
     distance_bound: float = 0.05,
-    intensity_weight: float = 1,
     exp_max_intensity: float = 1.0,
     sim_max_intensity: float = 1.0,
 ) -> tuple:
@@ -328,7 +326,6 @@ def score_intensity(
 
             n_total=n_total,
             distance_bound=distance_bound,
-            intensity_weight=intensity_weight
         )
 
         score_mirror = _get_score_intensity(
@@ -342,7 +339,6 @@ def score_intensity(
 
             n_total=n_total,
             distance_bound=distance_bound,
-            intensity_weight=intensity_weight
         )
 
         scores = [
@@ -451,7 +447,6 @@ def process_frames(
                 sim_data_items=sim_data,
                 step_size_rad=step_size_rad,
                 distance_bound=kwargs.get("distance_bound", 0.05),
-                intensity_weight=kwargs.get("intensity_weight", 1.0),
                 exp_max_intensity=kwargs.get("exp_max_intensity", 1.0),
                 sim_max_intensity=kwargs.get("sim_max_intensity", 1.0)
             )
@@ -503,8 +498,6 @@ def vector_match(
     fast: bool = False,
     n_jobs: int = -1,
     distance_bound: float = 0.05,
-    intensity_weight: float = 1.0,
-    intensity_norm_factor: float = 1.0,
     ang_thresh_rad: float = 0.05,
     dtype=np.float64
 ) -> np.ndarray:
@@ -547,7 +540,6 @@ def vector_match(
     }
 
     if method == "score_intensity":
-        kwargs["intensity_weight"] = intensity_weight
         # compute global max intensities for normalising intensities
         # assumes inhomogeneous experimental and homogeneous simulated arrays 
         exp_intensity_max = np.max(np.concatenate([frame[:, 2] for frame in experimental]))
