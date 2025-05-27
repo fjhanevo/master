@@ -72,7 +72,7 @@ def exp_and_sim_sphere_plot(exp, sim, rot, reciprocal_radius,mirror,lbls:tuple):
     # Back to radians for consistency
     rot = np.deg2rad(rot)
     if mirror < 0.0:
-        exp3d *= np.array([-1,1,1])
+        exp3d *= np.array([1,-1,1])
     sim_filtered = sim[~np.all(sim==0,axis=1)]
     sim_filtered3d = sm.vector_to_3D(sim_filtered, reciprocal_radius)
     sim_filtered3d_rot = np.array([sm.apply_z_rotation(vec,rot) for vec in sim_filtered3d])
@@ -120,27 +120,53 @@ if __name__ == '__main__':
     
     reciprocal_radius = 1.35 # [Å^-1]
     step_size = 0.5    # Degrees
-    # exp_frame = 56
+    exp_frame = 56
     n_best = len(simulated) 
 
+    
+    exp_intensity = np.load(DIR_NPY+FILE_INTENSITY,allow_pickle=True)
+    sim_intensity = np.load(DIR_NPY+FILE_SIM_INTENSITY,allow_pickle=True)
+
+    # exp_to_be_matched = experimental[exp_frame]
+    # exp3d = np.array([sm.vector_to_3D(exp_vec, reciprocal_radius) for exp_vec in exp_to_be_matched])
+    # frame, score, rotation, mirror = match_one_frame([exp_to_be_matched], simulated,step_size, reciprocal_radius, n_best, method=1)
+    # frame = 1087
+    # rotation = 288.5
+    # mirror = -1.0
+    # lbls = ('experimental', 'simulated')
+    # plotting.plot_two_spheres(exp3d, simulated[frame], lbls)
+    # sim3d = np.array([sm.vector_to_3D(sim_vec, reciprocal_radius) for sim_vec in simulated[frame]])
+    # exp_and_sim_sphere_plot(exp_to_be_matched, simulated[frame],0, reciprocal_radius, mirror, lbls)
+    # exp_and_sim_sphere_plot(exp_to_be_matched, simulated[frame],rotation, reciprocal_radius, mirror, lbls)
+    # exp_avg_intensity = [
+    #     np.mean(frame[:,-1]) if frame.shape[1] >= 3 else 0.0
+    #     for frame in exp_intensity
+    # ]
+    #
+    # sim_avg_intensity = np.mean(sim_intensity[:,:,-1], axis=1)
+    # sim_intensity_normalised = sim_avg_intensity / np.max(sim_avg_intensity)
+    # print(f"exp_intensity: {exp_avg_intensity}")
+    # print(f"sim_intensity: {sim_intensity_normalised}")
+
+    # n_array = vm.vector_match(
+    #     exp_intensity,
+    #     sim_intensity, 
+    #     200,
+    #     reciprocal_radius,
+    #     n_best, 
+    #     method="score_intensity",
+    #     fast=False
+    # )
+    # print(n_array.shape)
+
     ### CREATE NEW FILES ### 
-    filename = '220525_vector_match_sum_score_weighted_step05deg_distbound005.npy'
-    create_and_save_dataset(
-        experimental,
-        simulated, 
-        step_size,
-        reciprocal_radius,
-        n_best, 
-        method="sum_score_weighted",
-        filename=DIR_NPY+filename,
-    )
-
-
-    # filename = '160525_VM_matched_with_itself_step1deg_vector_match_kd_method.npy'
-    # dataset_for_algorithm_accuracy(
-    #     simulated=simulated,
-    #     step_size=1,
-    #     reciprocal_radius=reciprocal_radius,
-    #     n_best=n_best,
-    #     filename=DIR_NPY+filename
+    # filename = '260525_vector_match_ang_score_step05deg_ang_thresh005.npy'
+    # create_and_save_dataset(
+    #     experimental,
+    #     simulated, 
+    #     step_size,
+    #     reciprocal_radius,
+    #     n_best, 
+    #     method="score_ang",
+    #     filename=DIR_NPY+filename,
     # )
