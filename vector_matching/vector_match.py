@@ -548,12 +548,12 @@ def vector_match(
 
     if method == "score_intensity":
         kwargs["intensity_weight"] = intensity_weight
-        kwargs["intensity_norm_factor"] = intensity_norm_factor
         # compute global max intensities for normalising intensities
-        exp_avg_intensity = [np.mean(frame[:, -1]) for frame in experimental]
-        sim_avg_intensity = np.mean(simulated[:, :, -1], axis=1)
-        kwargs["exp_intensity_max"] = np.max(exp_avg_intensity)
-        kwargs["sim_intensity_max"] = np.max(sim_avg_intensity)
+        # assumes inhomogeneous experimental and homogeneous simulated arrays 
+        exp_intensity_max = np.max(np.concatenate([frame[:, 2] for frame in experimental]))
+        sim_intensity_max = np.max(simulated[:, :, 2])
+        kwargs["exp_intensity_max"] = exp_intensity_max
+        kwargs["sim_intensity_max"] = sim_intensity_max
     elif method == "score_ang":
         kwargs["ang_thresh_rad"] = ang_thresh_rad
 
