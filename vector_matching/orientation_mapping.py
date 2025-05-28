@@ -5,6 +5,7 @@ import simulation as sim
 import plotting as plot
 import matplotlib.pyplot as plt
 from sphere_matching import vector_match_kd, fast_polar
+import vector_match as vm
 from time import time
 
 
@@ -69,9 +70,9 @@ def compare_orientations(tm_orientation:np.ndarray, vm_orientation:np.ndarray) -
 def check_overlay_plot(exp, frame, sim, simulation):
     # Match one frame
     t1 = time()
-    sim_trimmed = sim[:31]   # did this to decrease comp time, as I know the answer
-    print(sim_trimmed.shape)
-    n_array = vector_match_kd([exp[frame]], sim_trimmed,step_size=0.5, reciprocal_radius=1.35, n_best=1)
+    sim_trimmed = sim[:1300]   # did this to decrease comp time, as I know the answer
+    # n_array = vector_match_kd([exp[frame]], sim_trimmed,step_size=0.5, reciprocal_radius=1.35, n_best=1)
+    n_array = vm.vector_match_parallelized([exp[frame]], sim_trimmed,step_size=0.5, reciprocal_radius=1.35, n_best=1, method='sum_score_weighted')
     t2 = time()
     print(n_array.shape)
     n_best = n_array[0][0]
@@ -99,9 +100,10 @@ if __name__ == '__main__':
     DIR_HSPY = 'processed_hspy_files/'
     HSPY = 'LF_cal_log_m_center_strict_peaks.hspy'
     ORG_HSPY = 'LeftFish_unmasked.hspy'
-    FILE_KD = '140525_vector_match_kd_step05deg_distbound005_fixedmirror.npy'
-    FILE_ANG = '150525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy'
-    FILE_SUM = '180525_vector_match_sum_score_step05deg_fixedmirror.npy'
+    FILE_KD = '220525_vector_match_sum_score_weighted_step05deg_distbound005.npy'
+    FILE_ANG = '260525_vector_match_ang_score_step05deg_ang_thresh005.npy'
+    FILE_SUM = '260525_vector_match_sum_score_step05deg.npy'
+    FILE_INTENSITY = '270525_vector_match_score_intensity_step05deg_dist005.npy'
 
     hs.set_log_level('WARNING')
     s = hs.load(DIR_HSPY+HSPY)
@@ -117,29 +119,39 @@ if __name__ == '__main__':
     sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
 
     
-    frame = 29
-
+    frame = 10
 
     i, j = frame, frame+1
+
+
     
     ### EXPERIMENTAL ###
-    exp_results = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
-    exp_results = to_orientation_map(exp_results,simulation)
-    # exp2 = np.load(DIR_NPY+'150525_vector_match_ang_score_step05deg_angtresh005_fixedmirror.npy', allow_pickle=True)
-    # exp3 = np.load(DIR_NPY+'060525ormap_step05deg_vector_match_sum_score_NO_MIRROR_wrap_degrees_v060525.npy', allow_pickle=True)
-    # exp2 = to_orientation_map(exp2, simulation)
-    # exp3 = to_orientation_map(exp3, simulation)
-    lbls = ('Score A', 'Score B', 'Score C')
-    clrs = ('Blue', 'Green', 'Red')
-    # print("exp:", exp_results.data[frame][0])
-    # print("sim:", sim_results.data[frame][0])
+    exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
+    exp_intensity = to_orientation_map(exp_intensity,simulation)
+    exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
+    exp_weighted = to_orientation_map(exp_weighted, simulation)
+    exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
+    exp_sum = to_orientation_map(exp_sum, simulation)
+    exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
+    exp_ang = to_orientation_map(exp_ang, simulation)
+
+    exp_results = exp_intensity
+    # lbls = ('Score A', 'Score B', 'Score C')
+    # clrs = ('Blue', 'Green', 'Red')
+    print("exp:", exp_results.data[frame][0])
+    print("sim:", sim_results.data[frame][0])
+    plot.plot_with_markers(exp_sum, DIR_HSPY+ORG_HSPY, i, j)
+    plot.plot_with_markers(exp_weighted, DIR_HSPY+ORG_HSPY, i, j)
+    plot.plot_with_markers(exp_ang, DIR_HSPY+ORG_HSPY, i, j)
+    plot.plot_with_markers(exp_intensity, DIR_HSPY+ORG_HSPY, i, j)
 
     ### PLOTS ### 
-    plot.plot_ipf_misorientations(exp_results, phase, cmap='viridis_r')
+    # plot.plot_ipf_all_best_orientations(exp_results, phase, cmap='viridis_r')
+    # plot.plot_ipf_all_best_orientations(sim_results, phase, cmap='viridis_r')
     # plot.plot_misorientation_scatter(exp_results)
     # plot.plot_misorientation_scatter(sim_results)
     # plot.plot_ipf(sim_results,frame,phase,orientation, 'viridis')
-    # plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
-    # plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
     # plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
     
