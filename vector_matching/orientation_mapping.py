@@ -8,8 +8,6 @@ from sphere_matching import vector_match_kd, fast_polar
 import vector_match as vm
 from time import time
 
-
-
 def to_orientation_map(data, simulation):
     """
     Converts numpy array into OrientaionMap and adds metdata.
@@ -93,6 +91,28 @@ def check_overlay_plot(exp, frame, sim, simulation):
     s_frame.add_marker(n_ormap.to_markers(annotate=True))
     plt.show()
 
+def get_misorientation_statistics(data, threshold: float = 10.0):
+    """
+    Computes some cool misorientation statistics
+    """
+
+    loris = data.to_single_phase_orientations()
+    loris_best = loris[:, 0]
+    loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+
+    stats = {}
+    misorientations = loris_ang.flatten()
+
+    stats['mean'] = np.mean(misorientations)
+    stats['min'] = np.min(misorientations)
+    stats['max'] = np.max(misorientations)
+    stats['std'] = np.std(misorientations)
+
+    below_threshold = np.sum(misorientations < threshold)
+
+    stats['precent_below_threshold'] = 100.0 * below_threshold / len(misorientations)
+
+    return stats
 
 
 if __name__ == '__main__':
@@ -119,7 +139,7 @@ if __name__ == '__main__':
     sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
 
     
-    frame = 10
+    frame = 56
 
     i, j = frame, frame+1
 
@@ -136,14 +156,28 @@ if __name__ == '__main__':
     exp_ang = to_orientation_map(exp_ang, simulation)
 
     exp_results = exp_intensity
+
+    print("Score A:")
+    print(get_misorientation_statistics(exp_sum))
+    print("Score B:")
+    print(get_misorientation_statistics(exp_weighted))
+    print("Score C:")
+    print(get_misorientation_statistics(exp_ang))
+    print("Score D:")
+    print(get_misorientation_statistics(exp_intensity))
     # lbls = ('Score A', 'Score B', 'Score C')
     # clrs = ('Blue', 'Green', 'Red')
-    print("exp:", exp_results.data[frame][0])
-    print("sim:", sim_results.data[frame][0])
-    plot.plot_with_markers(exp_sum, DIR_HSPY+ORG_HSPY, i, j)
-    plot.plot_with_markers(exp_weighted, DIR_HSPY+ORG_HSPY, i, j)
-    plot.plot_with_markers(exp_ang, DIR_HSPY+ORG_HSPY, i, j)
-    plot.plot_with_markers(exp_intensity, DIR_HSPY+ORG_HSPY, i, j)
+    # print("exp:", exp_results.data[frame][0])
+    # print("sim:", sim_results.data[frame][0])
+    # plot.plot_misorientation_violin(exp_ang)
+    # plot.plot_with_markers(exp_sum, DIR_HSPY+ORG_HSPY, i, j)
+    # plot.plot_with_markers(exp_weighted, DIR_HSPY+ORG_HSPY, i, j)
+    # plot.plot_with_markers(exp_ang, DIR_HSPY+ORG_HSPY, i, j)
+    # plot.plot_with_markers(exp_intensity, DIR_HSPY+ORG_HSPY, i, j)
+    # plot.plot_ipf_all_best_orientations(exp_sum, phase, cmap='viridis_r')
+    # plot.plot_ipf_all_best_orientations(exp_weighted, phase, cmap='viridis_r')
+    # plot.plot_ipf_all_best_orientations(exp_ang, phase, cmap='viridis_r')
+    # plot.plot_ipf_all_best_orientations(exp_intensity, phase, cmap='viridis_r')
 
     ### PLOTS ### 
     # plot.plot_ipf_all_best_orientations(exp_results, phase, cmap='viridis_r')
@@ -151,7 +185,7 @@ if __name__ == '__main__':
     # plot.plot_misorientation_scatter(exp_results)
     # plot.plot_misorientation_scatter(sim_results)
     # plot.plot_ipf(sim_results,frame,phase,orientation, 'viridis')
-    plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
-    plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
+    # plot.plot_ipf(exp_results,frame,phase,orientation, 'viridis_r')
+    # plot.plot_with_markers(exp_results,DIR_HSPY+ORG_HSPY,i,j)
     # plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,i,j)
     
