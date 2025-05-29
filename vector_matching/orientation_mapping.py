@@ -91,7 +91,7 @@ def check_overlay_plot(exp, frame, sim, simulation):
     s_frame.add_marker(n_ormap.to_markers(annotate=True))
     plt.show()
 
-def get_misorientation_statistics(data, threshold: float = 10.0):
+def get_misorientation_statistics(data):
     """
     Computes some cool misorientation statistics
     """
@@ -108,9 +108,12 @@ def get_misorientation_statistics(data, threshold: float = 10.0):
     stats['max'] = np.max(misorientations)
     stats['std'] = np.std(misorientations)
 
-    below_threshold = np.sum(misorientations < threshold)
-
-    stats['precent_below_threshold'] = 100.0 * below_threshold / len(misorientations)
+    # thresholds
+    t1, t2 = 10.0, 5.0
+    below_10deg = np.sum(misorientations < t1)
+    stats['precent_below_10deg'] = 100.0 * below_10deg/ len(misorientations)
+    below_5deg = np.sum(misorientations < t2)
+    stats['precent_below_5deg'] = 100.0 * below_5deg/ len(misorientations)
 
     return stats
 
