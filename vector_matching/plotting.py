@@ -229,6 +229,23 @@ def plot_misorientation_scatter(data):
     plt.tight_layout()
     plt.show()
 
+def plot_misorientation_violin(data):
+    """
+
+    """
+    loris = data.to_single_phase_orientations()
+    loris_best = loris[:, 0]
+    loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+    
+    plt.figure()
+    plt.violinplot(loris_ang.flatten(), showmeans=True)
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+
+
+
+
 def plot_crystal_map(results,phase):
     """
     Assumes reshaped dataset!
