@@ -101,8 +101,8 @@ def get_misorientation_statistics(data):
     loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
 
     stats = {}
-    misorientations = loris_ang.flatten()
-
+    # use only neighboring misorientations
+    misorientations = np.array([loris_ang[i, i+1] for i in range(len(loris_ang)-1)])
     stats['mean'] = np.mean(misorientations)
     stats['min'] = np.min(misorientations)
     stats['max'] = np.max(misorientations)
