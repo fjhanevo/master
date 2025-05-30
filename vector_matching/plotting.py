@@ -229,24 +229,30 @@ def plot_misorientation_scatter(data):
     plt.tight_layout()
     plt.show()
 
-def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tuple, symbols:tuple):
+def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tuple, symbols:tuple, lim=False):
     """
     Plots the misorientations as scatter plots for multiple datasets.
     """
-    # data1, data2, data3, data4 = datasets
-    # datasets = [data1, data2, data3]
-    # c1, c2, c3, c4 = colors
-    # l1, l2, l3, l4 = labels 
 
     plt.figure(figsize=(8,6))
 
+    marker_size = 64
     for data, color, label, symbol in zip(datasets, colors, labels, symbols):
         loris = data.to_single_phase_orientations()
         loris_best = loris[:, 0]
         loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
 
+        label_added = False
         for i in range(len(loris_ang) - 1):
-            plt.scatter(i, loris_ang[i, i + 1], s=34, c=color, label=label if i == 0 else "", marker=symbol)
+            if lim:
+                mis = loris_ang[i, i + 1]
+                if mis <= 10.0:
+                    plt.scatter(i, mis, s=marker_size, c=color, label=label if not label_added else "", marker=symbol)
+                    label_added=True
+            else:
+                plt.scatter(i, loris_ang[i, i + 1], s=marker_size, c=color, label=label if i == 0 else "", marker=symbol)
+
+            
 
     plt.axhline(y=1, color='black', label=r'1$\degree$', linestyle='dashed')
     plt.grid(True)
@@ -254,6 +260,8 @@ def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tupl
     plt.xlabel('Tilt Step', fontsize=26)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
+    # if lim:
+    #     plt.ylim(0, 10)
     plt.legend(fontsize=18, loc='upper right')
     plt.tight_layout()
     plt.show()
