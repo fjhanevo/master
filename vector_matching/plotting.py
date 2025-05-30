@@ -229,16 +229,52 @@ def plot_misorientation_scatter(data):
     plt.tight_layout()
     plt.show()
 
+def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tuple, symbols:tuple):
+    """
+    Plots the misorientations as scatter plots for multiple datasets.
+    """
+    # data1, data2, data3, data4 = datasets
+    # datasets = [data1, data2, data3]
+    # c1, c2, c3, c4 = colors
+    # l1, l2, l3, l4 = labels 
+
+    plt.figure(figsize=(8,6))
+
+    for data, color, label, symbol in zip(datasets, colors, labels, symbols):
+        loris = data.to_single_phase_orientations()
+        loris_best = loris[:, 0]
+        loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+
+        for i in range(len(loris_ang) - 1):
+            plt.scatter(i, loris_ang[i, i + 1], s=34, c=color, label=label if i == 0 else "", marker=symbol)
+
+    plt.axhline(y=1, color='black', label=r'1$\degree$', linestyle='dashed')
+    plt.grid(True)
+    plt.ylabel(r'Misorientation$\degree$', fontsize=26)
+    plt.xlabel('Tilt Step', fontsize=26)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
+    plt.legend(fontsize=18, loc='upper right')
+    plt.tight_layout()
+    plt.show()
+
+
+
+#NOTE: This sucks as of now, dont use it
+# Will update this to be useful
 def plot_misorientation_violin(data):
     """
-
     """
     loris = data.to_single_phase_orientations()
     loris_best = loris[:, 0]
     loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+
+    misorientations = np.array([loris_ang[i, i+1] for i in range(len(loris_ang)-1)])
     
     plt.figure()
-    plt.violinplot(loris_ang.flatten(), showmeans=True)
+    plt.violinplot(misorientations, showmeans=True, showmedians=True, showextrema=True)
+    plt.ylabel(r'Misorientation$\degree$',fontsize='26')
+    plt.xlabel('Distribution',fontsize='26')
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
     plt.show()
@@ -270,36 +306,6 @@ def plot_crystal_map(results,phase):
     plt.show()
 
 
-def plot_compare_misorientation_scatter(data1, data2, data3, lbls:tuple, clrs:tuple):
-    """
-    Plots the misorientations as scatter plots for multiple datasets.
-    """
-    datasets = [data1, data2, data3]
-    c1, c2, c3 = clrs
-    colors = [c1,c2,c3]
-    l1, l2, l3 = lbls 
-    labels = [l1, l2, l3] 
-
-    plt.figure(figsize=(8,6))
-
-    for data, color, label in zip(datasets, colors, labels):
-        loris = data.to_single_phase_orientations()
-        loris_best = loris[:, 0]
-        loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
-
-        for i in range(len(loris_ang) - 1):
-            plt.scatter(i, loris_ang[i, i + 1], s=34, c=color, label=label if i == 0 else "")
-
-    plt.axhline(y=1, color='red', label=r'1$\degree$', linestyle='dashed')
-    plt.grid(True)
-    plt.ylabel(r'Misorientation$\degree$', fontsize=26)
-    plt.xlabel('Tilt Step', fontsize=26)
-    plt.xticks(fontsize=18)
-    plt.yticks(fontsize=18)
-    plt.legend(fontsize=18, loc='upper right')
-    plt.tight_layout()
-    plt.show()
-
 def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
     from matplotlib import cm
     fig = plt.figure()
@@ -320,6 +326,7 @@ def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
     plt.show()
 
 
+#NOTE: This sucks dont use it
 def plot_ipf_misorientations(data, phase, cmap):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
