@@ -268,22 +268,46 @@ def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tupl
 
 
 
-#NOTE: This sucks as of now, dont use it
-# Will update this to be useful
 def plot_misorientation_violin(data):
     """
     """
     loris = data.to_single_phase_orientations()
     loris_best = loris[:, 0]
     loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+    num_frames = loris_ang.shape[0] 
 
-    misorientations = np.array([loris_ang[i, i+1] for i in range(len(loris_ang)-1)])
+    # calculate normalised misorientations fore ach frame
+    violin_data = []
+    means = []
+    for i in range(num_frames):
+        normalised_misorientations = []
+        for j in range(num_frames):
+            if i != j:
+                misorientation = loris_ang[i, j]
+                index_diff = abs(i - j)
+                normalised = misorientation / index_diff
+                normalised_misorientations.append(normalised)
+        violin_data.append(normalised_misorientations)
+        means.append(np.mean(normalised_misorientations))
     
-    plt.figure()
-    plt.violinplot(misorientations, showmeans=True, showmedians=True, showextrema=True)
+
+    plt.figure(figsize=(10, 6))
+    parts = plt.violinplot(violin_data, showmeans=False, showextrema=False, widths=0.9)
+    for pc in parts['bodies']:
+        pc.set_facecolor('#1f77b4')
+        pc.set_alpha(0.6)
+
+    # extra overlay to make outliers more visible
+    for i, data in enumerate(violin_data, start=1):
+        plt.scatter([i]*len(data), data, color='k', s=5, alpha=0.3)
+    
+    # scatter plot overlay
+    plt.scatter(range(1, num_frames + 1), means, color='red', label='Mean Normalised Misorientation', s=20)
+    plt.axhline(y=1, color='black', label=r'1$\degree$', linestyle='dashed')
     plt.ylabel(r'Misorientation$\degree$',fontsize='26')
-    plt.xlabel('Distribution',fontsize='26')
+    plt.xlabel('Tilt Step',fontsize='26')
     plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
