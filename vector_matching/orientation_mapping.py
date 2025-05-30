@@ -109,11 +109,11 @@ def get_misorientation_statistics(data):
     stats['std'] = np.std(misorientations)
 
     # thresholds
-    t1, t2 = 10.0, 5.0
-    below_10deg = np.sum(misorientations < t1)
-    stats['precent_below_10deg'] = 100.0 * below_10deg/ len(misorientations)
-    below_5deg = np.sum(misorientations < t2)
-    stats['precent_below_5deg'] = 100.0 * below_5deg/ len(misorientations)
+    t1, t2 = 5.0, 2.5
+    below_t1deg = np.sum(misorientations < t1)
+    stats['precent_below_5deg'] = 100.0 * below_t1deg/ len(misorientations)
+    below_t2deg = np.sum(misorientations < t2)
+    stats['precent_below_2.5deg'] = 100.0 * below_t2deg/ len(misorientations)
 
     return stats
 
@@ -160,6 +160,16 @@ if __name__ == '__main__':
 
     exp_results = exp_intensity
 
+    ### Misorientation comparison ###
+    # lbls = ('Score A', 'Score B', 'Score C', 'Score D')
+    # clrs = ('Blue', 'Orange', 'Red', 'Green')
+    # symbols = ('o', '^', 's', 'X')
+    # datasets = [exp_sum, exp_weighted, exp_ang, exp_intensity]
+    # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols)
+    # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols,lim=True)
+
+
+
     print("Score A:")
     print(get_misorientation_statistics(exp_sum))
     print("Score B:")
@@ -168,11 +178,10 @@ if __name__ == '__main__':
     print(get_misorientation_statistics(exp_ang))
     print("Score D:")
     print(get_misorientation_statistics(exp_intensity))
-    # lbls = ('Score A', 'Score B', 'Score C')
-    # clrs = ('Blue', 'Green', 'Red')
+   
     # print("exp:", exp_results.data[frame][0])
     # print("sim:", sim_results.data[frame][0])
-    # plot.plot_misorientation_violin(exp_ang)
+    # plot.plot_misorientation_violin(exp_intensity)
     # plot.plot_with_markers(exp_sum, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_with_markers(exp_weighted, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_with_markers(exp_ang, DIR_HSPY+ORG_HSPY, i, j)
