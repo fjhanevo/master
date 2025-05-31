@@ -4,7 +4,6 @@ import numpy as np
 import simulation as sim
 import plotting as plot
 import matplotlib.pyplot as plt
-from sphere_matching import vector_match_kd, fast_polar
 import vector_match as vm
 from time import time
 
@@ -65,12 +64,19 @@ def compare_orientations(tm_orientation:np.ndarray, vm_orientation:np.ndarray) -
 
     return stats 
 
-def check_overlay_plot(exp, frame, sim, simulation):
+def check_overlay_plot(exp, frame, simulation, phase, orientation, method):
     # Match one frame
+    sim_data = np.load(DIR_NPY+'LF_r_theta_sim.npy', allow_pickle=True)
     t1 = time()
-    sim_trimmed = sim[:1300]   # did this to decrease comp time, as I know the answer
+    sim_trimmed = sim_data[:1300]   # did this to decrease comp time, as I know the answer
     # n_array = vector_match_kd([exp[frame]], sim_trimmed,step_size=0.5, reciprocal_radius=1.35, n_best=1)
-    n_array = vm.vector_match_parallelized([exp[frame]], sim_trimmed,step_size=0.5, reciprocal_radius=1.35, n_best=1, method='sum_score_weighted')
+    n_array = vm.vector_match(
+        [exp[frame]], 
+        sim_data,
+        step_size=0.5, 
+        reciprocal_radius=1.35, 
+        n_best=len(sim_data), 
+        method=method)
     t2 = time()
     print(n_array.shape)
     n_best = n_array[0][0]
@@ -90,6 +96,10 @@ def check_overlay_plot(exp, frame, sim, simulation):
     s_frame.plot(cmap='viridis_r', norm='log', title='', colorbar=False, scalebar_color='black', axes_ticks='off')
     s_frame.add_marker(n_ormap.to_markers(annotate=True))
     plt.show()
+
+    # plot ipf
+    plot.plot_ipf(n_ormap, 0, phase, orientation, cmap='viridis_r')
+
 
 def get_misorientation_statistics(data):
     """
@@ -142,23 +152,28 @@ if __name__ == '__main__':
     sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
 
     
-    frame = 56
+    frame = 29
 
     i, j = frame, frame+1
 
 
+    ### Check overlay plot ###
+    experimental = np.load(DIR_NPY+'peaks_all_LoG.npy', allow_pickle=True)
+    method = "score_ang"
+    check_overlay_plot(experimental, frame, simulation, phase, orientation, method)
     
     ### EXPERIMENTAL ###
-    exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
-    exp_intensity = to_orientation_map(exp_intensity,simulation)
-    exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
-    exp_weighted = to_orientation_map(exp_weighted, simulation)
-    exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
-    exp_sum = to_orientation_map(exp_sum, simulation)
-    exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
-    exp_ang = to_orientation_map(exp_ang, simulation)
+    # exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
+    # exp_intensity = to_orientation_map(exp_intensity,simulation)
+    # exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
+    # exp_weighted = to_orientation_map(exp_weighted, simulation)
+    # exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
+    # exp_sum = to_orientation_map(exp_sum, simulation)
+    # exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
+    # exp_ang = to_orientation_map(exp_ang, simulation)
 
-    exp_results = exp_intensity
+    # exp_results = exp_intensity
+
 
     ### Misorientation comparison ###
     # lbls = ('Score A', 'Score B', 'Score C', 'Score D')
@@ -167,17 +182,19 @@ if __name__ == '__main__':
     # datasets = [exp_sum, exp_weighted, exp_ang, exp_intensity]
     # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols)
     # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols,lim=True)
+    # plot.plot_misorientation_violin(exp_weighted)
+    
 
 
 
-    print("Score A:")
-    print(get_misorientation_statistics(exp_sum))
-    print("Score B:")
-    print(get_misorientation_statistics(exp_weighted))
-    print("Score C:")
-    print(get_misorientation_statistics(exp_ang))
-    print("Score D:")
-    print(get_misorientation_statistics(exp_intensity))
+    # print("Score A:")
+    # print(get_misorientation_statistics(exp_sum))
+    # print("Score B:")
+    # print(get_misorientation_statistics(exp_weighted))
+    # print("Score C:")
+    # print(get_misorientation_statistics(exp_ang))
+    # print("Score D:")
+    # print(get_misorientation_statistics(exp_intensity))
    
     # print("exp:", exp_results.data[frame][0])
     # print("sim:", sim_results.data[frame][0])
