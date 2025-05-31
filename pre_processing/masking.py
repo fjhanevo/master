@@ -130,22 +130,38 @@ if __name__ == '__main__':
         'log_scale': True,
         'exclude_border': True
     }
-    filename = 'peaks_intensity_all_LoG.npy'
+    params_liberal = {
+        'method': 'laplacian_of_gaussian',
+        'get_intensity': False,
+        'min_sigma': 2.8,
+        'max_sigma': 5,
+        'num_sigma': 4,
+        'overlap': 0.1 ,
+        'log_scale': True,
+        'exclude_border': True
+
+    }
+    # filename = 'peaks_intensity_all_LoG.npy'
+    filename = '310525_liberal_peaks_for_discussion_LoG.npy'
     # peaks = get_peaks(dp,**params_intensity)
     # np.save(file=DIR_NPY+filename, arr=peaks,allow_pickle=True)
-    f56 = peak_find_one_frame(dp, 56, **params)
-    print(f56.shape)
-    f29 = peak_find_one_frame(dp, 29, **params)
-    dp_masked = hs.load(DIR_HSPY+FILE_STRICT)
-    dp_masked_56 = dp_masked.inav[56]
-    dp_masked_56.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
-             scalebar=True,scalebar_color='black', axes_ticks='off')
-
-    plt.tight_layout()
-    plt.show()
-    dp_masked_29 = dp_masked.inav[29]
-    dp_masked_29.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
-             scalebar=True,scalebar_color='black', axes_ticks='off')
-    plt.tight_layout()
-    plt.show()
+    f56 = peak_find_one_frame(dp, 29, **params_liberal)
+    f56 = peak_find_one_frame(dp, 56, **params_liberal)
+    # print(f56.shape)
+    # f29 = peak_find_one_frame(dp, 29, **params)
+    # dp_masked = hs.load(DIR_HSPY+FILE_STRICT)
+    # dp_masked_56 = dp_masked.inav[56]
+    # dp_masked_56.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
+    #          scalebar=True,scalebar_color='black', axes_ticks='off')
+    #
+    # plt.tight_layout()
+    # plt.show()
+    # dp_masked_29 = dp_masked.inav[29]
+    # dp_masked_29.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
+    #          scalebar=True,scalebar_color='black', axes_ticks='off')
+    # plt.tight_layout()
+    # plt.show()
+    #
+    peaks_liberal = get_peaks(dp, **params)
+    np.save(file=DIR_NPY+filename, arr=peaks_liberal, allow_pickle=True)
 
