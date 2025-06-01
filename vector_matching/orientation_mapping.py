@@ -203,6 +203,8 @@ if __name__ == '__main__':
     print("TM misorientation stats:")
     print(get_misorientation_statistics(sim_results))
 
+    plot.plot_ipf_all_best_orientations(sim_results, phase, cmap='viridis_r')
+
 
     # print("Score A:")
     # print(get_misorientation_statistics(exp_sum))
