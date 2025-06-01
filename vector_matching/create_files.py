@@ -47,6 +47,7 @@ if __name__ == '__main__':
         n_best=n_best,
         method="sum_score"
     )
+    np.save(file=filename, arr=result, allow_pickle=True)
     # free memory
     del result
     gc.collect()
@@ -66,6 +67,7 @@ if __name__ == '__main__':
         method="sum_score_weighted",
         distance_bound=0.05
     )
+    np.save(file=filename, arr=result, allow_pickle=True)
     # free memory
     del result
     gc.collect()
@@ -84,6 +86,7 @@ if __name__ == '__main__':
         method="score_ang",
         ang_thresh_rad=0.05 
     )
+    np.save(file=filename, arr=result, allow_pickle=True)
     # free memory
     del result
     gc.collect()
@@ -104,6 +107,7 @@ if __name__ == '__main__':
 
     )
     # free memory
+    np.save(file=filename, arr=result, allow_pickle=True)
     del result
     gc.collect()
     t2 = time()
@@ -122,6 +126,7 @@ if __name__ == '__main__':
         fast=True
     )
     # free memory
+    np.save(file=filename, arr=result, allow_pickle=True)
     del result
     gc.collect()
     t2 = time()
