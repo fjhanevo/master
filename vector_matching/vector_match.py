@@ -166,6 +166,7 @@ def _get_score_ang(
     # return normalised score
     return score / n_total
 
+@njit
 def score_ang(
     exp3d: np.ndarray,
     exp3d_mirror: np.ndarray,
@@ -275,6 +276,7 @@ def _get_score_intensity(
         sim_intensities_unmatched = sim_intensities[unmatched_sim_mask]
         unmatched_point_penalty_sim = sim_intensities_unmatched 
         point_scores_sim[unmatched_sim_mask] = unmatched_point_penalty_sim
+        print(sim_intensities_unmatched)
 
     sum_sim_score = np.sum(point_scores_sim)
 
@@ -312,7 +314,6 @@ def score_intensity(
 
         # normalise simulated intensities (sets intensities to range 0 to 1)
         sim_intensities_normalised = np.clip(sim_intensities / sim_max_intensity, 0.0, 1.0)
-
         n_total = len(exp3d) + len(sim_coords)
 
         score_original = _get_score_intensity(
@@ -361,7 +362,7 @@ def _precompute_sim_data(
     dtype=np.float64
 ) -> list:
     """
-    Helper function to precompute data for intensity method
+    Helper function to precompute, transpose, filter, and rotate the simulated data. 
     """
 
     precomputed_sim_rotations = []
@@ -513,8 +514,8 @@ def vector_match(
     if method not in valid_methods:
         raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
 
-    if method == "score_ang" and fast:
-        raise ValueError(f"Method: {method} does not support fast == {fast}, set fast == False")
+    # if method == "score_ang" and fast:
+    #     raise ValueError(f"Method: {method} does not support fast == {fast}, set fast == False")
 
     if dimension == 3 and method == "score_intensity":
         # 2D polar with intensity
@@ -554,7 +555,7 @@ def vector_match(
 
     if fast:
         # parallelised method, very RAM demanding
-        n_array = Parallel(n_jobs=n_jobs) (
+        n_array = Parallel(n_jobs=n_jobs, prefer="threads") (
         delayed(process_frames) (
             exp3d=exp3d_all[idx],
             exp3d_mirror=exp3d_mirror_all[idx],
@@ -582,5 +583,3 @@ def vector_match(
             ))
         # returns nx4 array of shape (len(experimental), n_best, 4)
     return np.stack(n_array)
-
-
