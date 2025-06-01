@@ -152,25 +152,25 @@ if __name__ == '__main__':
     sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
 
     
-    frame = 29
+    frame = 56
 
     i, j = frame, frame+1
 
 
     ### Check overlay plot ###
-    experimental = np.load(DIR_NPY+'peaks_all_LoG.npy', allow_pickle=True)
-    method = "score_ang"
-    check_overlay_plot(experimental, frame, simulation, phase, orientation, method)
+    # experimental = np.load(DIR_NPY+'peaks_all_LoG.npy', allow_pickle=True)
+    # method = "score_ang"
+    # check_overlay_plot(experimental, frame, simulation, phase, orientation, method)
     
     ### EXPERIMENTAL ###
-    # exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
-    # exp_intensity = to_orientation_map(exp_intensity,simulation)
-    # exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
-    # exp_weighted = to_orientation_map(exp_weighted, simulation)
-    # exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
-    # exp_sum = to_orientation_map(exp_sum, simulation)
-    # exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
-    # exp_ang = to_orientation_map(exp_ang, simulation)
+    exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
+    exp_intensity = to_orientation_map(exp_intensity,simulation)
+    exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
+    exp_weighted = to_orientation_map(exp_weighted, simulation)
+    exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
+    exp_sum = to_orientation_map(exp_sum, simulation)
+    exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
+    exp_ang = to_orientation_map(exp_ang, simulation)
 
     # exp_results = exp_intensity
 
@@ -185,6 +185,23 @@ if __name__ == '__main__':
     # plot.plot_misorientation_violin(exp_weighted)
     
 
+    ### Comparing score C to TM ###
+    # first we get TM results
+    frames = [10, 29, 56]
+    for f in frames:
+        plot.plot_with_markers(sim_results,DIR_HSPY+ORG_HSPY,f,f+1)
+        plot.plot_ipf(sim_results, f, phase, orientation, cmap='viridis') # regular cmap not reversed cause score is opposite, get it?
+
+    # misorientation comparison
+    datasets = [exp_ang, sim_results]
+    lbls = ('Score C', 'TM')
+    clrs = ('Red', 'blue')
+    symbols = ('s', 'o')
+    plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols, lim=False, legend_loc='best' )
+    plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols, lim=True, legend_loc='upper left')
+
+    print("TM misorientation stats:")
+    print(get_misorientation_statistics(sim_results))
 
 
     # print("Score A:")
@@ -199,6 +216,10 @@ if __name__ == '__main__':
     # print("exp:", exp_results.data[frame][0])
     # print("sim:", sim_results.data[frame][0])
     # plot.plot_misorientation_violin(exp_intensity)
+    # plot.plot_ipf(exp_sum, frame, phase, orientation, cmap='viridis_r')
+    # plot.plot_ipf(exp_weighted, frame, phase, orientation, cmap='viridis_r')
+    # plot.plot_ipf(exp_ang, frame, phase, orientation, cmap='viridis_r')
+    # plot.plot_ipf(exp_intensity, frame, phase, orientation, cmap='viridis_r')
     # plot.plot_with_markers(exp_sum, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_with_markers(exp_weighted, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_with_markers(exp_ang, DIR_HSPY+ORG_HSPY, i, j)
