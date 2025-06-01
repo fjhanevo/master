@@ -229,7 +229,7 @@ def plot_misorientation_scatter(data):
     plt.tight_layout()
     plt.show()
 
-def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tuple, symbols:tuple, lim=False):
+def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tuple, symbols:tuple, lim=False, legend_loc='upper right'):
     """
     Plots the misorientations as scatter plots for multiple datasets.
     """
@@ -262,7 +262,7 @@ def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tupl
     plt.yticks(fontsize=18)
     # if lim:
     #     plt.ylim(0, 10)
-    plt.legend(fontsize=18, loc='upper right')
+    plt.legend(fontsize=18, loc=legend_loc)
     plt.tight_layout()
     plt.show()
 
