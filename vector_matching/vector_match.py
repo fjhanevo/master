@@ -514,41 +514,43 @@ def vector_match(
     if method not in valid_methods:
         raise ValueError(f"Unsupported method: {method}. Valid options: {valid_methods}")
 
-    # if method == "score_ang" and fast:
-    #     raise ValueError(f"Method: {method} does not support fast == {fast}, set fast == False")
+    if method == "score_ang" and fast:
+        raise ValueError(f"Method: {method} does not support fast == {fast}, set fast = False")
 
+
+    # not ideal but i don't care
+    kwargs = {
+        "distance_bound": distance_bound,
+        "ang_thresh_rad": ang_thresh_rad,
+    }
     if dimension == 3 and method == "score_intensity":
         # 2D polar with intensity
-        exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:2], reciprocal_radius,dtype) for exp_vec in experimental]
+        # convert experimental from 2D cartesian to 2D polar
+        exp_pol = vm_utils.fast_polar(experimental[:,:2])
+        exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:2], reciprocal_radius,dtype) for exp_vec in exp_pol]
         exp_intensities = [frame[:, 2] for frame in experimental]
+        # calculate max intensities for normalising
+        exp_intensity_max = np.max(np.concatenate(exp_intensities))
+        sim_intensity_max = np.max(simulated[:, :, 2])
+        kwargs["exp_intensity_max"] = exp_intensity_max
+        kwargs["sim_intensity_max"] = sim_intensity_max
+
     elif dimension == 2:
         # 2D polar only
-        exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in experimental]
+        # convert experimental from 2D cartesian to 2D polar
+        exp_pol = vm_utils.fast_polar(experimental)
+        exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in exp_pol]
         exp_intensities = [np.zeros(len(frame)) for frame in experimental] # set to zero as we're not dealing with it
     else:
         raise ValueError(f"Wrong dimension: {dimension}D for method: {method}")
     # mirror version 
     exp3d_mirror_all = [exp_vec * np.array([1,-1,1], dtype=dtype) for exp_vec in exp3d_all]
 
-
     # Convert input degrees to radians
     step_size_rad = np.deg2rad(step_size)
     # Precompute KD-trees for rotated simulated frames
     precomputed_data = _precompute_sim_data(simulated, step_size_rad, reciprocal_radius, dtype)
 
-    kwargs = {
-        "distance_bound": distance_bound,
-    }
-
-    if method == "score_intensity":
-        # compute global max intensities for normalising intensities
-        # assumes inhomogeneous experimental and homogeneous simulated arrays 
-        exp_intensity_max = np.max(np.concatenate([frame[:, 2] for frame in experimental]))
-        sim_intensity_max = np.max(simulated[:, :, 2])
-        kwargs["exp_intensity_max"] = exp_intensity_max
-        kwargs["sim_intensity_max"] = sim_intensity_max
-    elif method == "score_ang":
-        kwargs["ang_thresh_rad"] = ang_thresh_rad
 
     # array to store final results
     n_array = []
