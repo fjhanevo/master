@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
     experimental = np.load(DIR_NPY+FILE_STRICT,allow_pickle=True)
     # Quick polar transform
-    experimental = sm.fast_polar(experimental)
+    # experimental = sm.fast_polar(experimental)
     simulated = np.load(DIR_NPY+FILE_SIM,allow_pickle=True)
     
     reciprocal_radius = 1.35 # [Å^-1]
@@ -127,8 +127,12 @@ if __name__ == '__main__':
     exp_intensity = np.load(DIR_NPY+FILE_INTENSITY,allow_pickle=True)
     sim_intensity = np.load(DIR_NPY+FILE_SIM_INTENSITY,allow_pickle=True)
 
+    exp_intensity = sm.fast_polar(exp_intensity)
+    # match_one_frame([experimental[exp_frame]],simulated,step_size,reciprocal_radius,n_best,1)
+
     ### CREATE NEW FILES ### 
-    filename = '270525_vector_match_score_intensity_step05deg_dist005.npy'
+    filename = '030625_vector_match_score_intensity_step05deg_dist005.npy'
+    # filename = 'temp.npy'
     create_and_save_dataset(
         exp_intensity,
         sim_intensity, 
@@ -138,3 +142,10 @@ if __name__ == '__main__':
         method="score_intensity",
         filename=DIR_NPY+filename,
     )
+
+    # sim_frame = 1087
+    # rotation = 288.5
+    # mirror = -1.0
+    # lbls  = ('simulated', 'experimental')
+    # exp_and_sim_sphere_plot(experimental[exp_frame],simulated[sim_frame],0, reciprocal_radius, mirror, lbls )
+    # exp_and_sim_sphere_plot(experimental[exp_frame],simulated[sim_frame],rotation, reciprocal_radius, mirror, lbls )
