@@ -1,5 +1,24 @@
+import pyxem as pxm
 import numpy as np
 from numba import njit
+
+def fast_polar(cart_vec: np.ndarray) -> np.ndarray:
+    """
+    Polar transforms 2D cartesian vectors to 2D polar vectors
+    using pyxem, wow!
+    Params:
+    ---------
+        cart_vec: np.ndarray:
+            2D cartesian vector
+    Returns:
+    ---------
+        s.data: np.ndarray:
+            2D polar vector
+    """
+    s = pxm.signals.DiffractionVectors(cart_vec)
+    s = s.to_polar()
+    return s.data
+
 
 def vector_to_3D(vector: np.ndarray,reciprocal_radius: float, dtype) -> np.ndarray:
     """
