@@ -304,7 +304,7 @@ def plot_misorientation_violin(data):
     # scatter plot overlay
     plt.scatter(range(1, num_frames + 1), means, color='red', label='Mean Normalised Misorientation', s=20)
     plt.axhline(y=1, color='black', label=r'1$\degree$', linestyle='dashed')
-    plt.ylabel(r'Misorientation$\degree$',fontsize='26')
+    plt.ylabel(r'Normalised Misorientation [$\degree$/$\Delta$step]',fontsize='26')
     plt.xlabel('Tilt Step',fontsize='26')
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.legend()
