@@ -23,9 +23,11 @@ def get_center_interactive(s):
     """
     
     circ = hs.roi.CircleROI(cx=0,cy=0, r=1)
+
     s=s.max()
-    s.plot(colorbar=None)
-    circ.add_widget(s)
+    s.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
+             scalebar=True,scalebar_color='black', axes_ticks='off')
+    circ.add_widget(s, color='red')
     plt.show()
     return circ 
     
@@ -104,10 +106,10 @@ if __name__ == '__main__':
     FILE_STRICT = 'LF_cal_log_m_center_strict_peaks.hspy'
     # VECTOR_FILE = 'LF_peaks_m_center_m_peaks.npy'
     VECTOR_FILE = 'peaks_all_LoG.npy'
-    # dp = hs.load(DIR_HSPY+FILE)
-    dp = hs.load(DIR_HSPY+CENTER_FILE)
-    # _,_,radius,_= get_center_interactive(dp)
-    # print(radius)
+    dp = hs.load(DIR_HSPY+FILE)
+    # dp = hs.load(DIR_HSPY+CENTER_FILE)
+    _,_,radius,_= get_center_interactive(dp)
+    print(radius)
     # radius = 0.26425
     # mask_center(dp,radius,DIR_HSPY+CENTER_FILE)
     params = {
@@ -141,14 +143,25 @@ if __name__ == '__main__':
         'exclude_border': True
 
     }
+    params_more_liberal = {
+        'method': 'laplacian_of_gaussian',
+        'get_intensity': False,
+        'min_sigma': 2.5,
+        'max_sigma': 5,
+        'num_sigma': 4,
+        'overlap': 0.1 ,
+        'log_scale': True,
+        'exclude_border': True
+
+    }
     # filename = 'peaks_intensity_all_LoG.npy'
-    filename = '310525_liberal_peaks_for_discussion_LoG.npy'
+    # filename = '310525_liberal_peaks_for_discussion_LoG.npy'
+    filename = '030625_more_liberal_peaks_for_discussion_LoG.npy'
     # peaks = get_peaks(dp,**params_intensity)
     # np.save(file=DIR_NPY+filename, arr=peaks,allow_pickle=True)
-    f56 = peak_find_one_frame(dp, 29, **params_liberal)
-    f56 = peak_find_one_frame(dp, 56, **params_liberal)
+    # f56 = peak_find_one_frame(dp, 56, **params_more_liberal)
     # print(f56.shape)
-    # f29 = peak_find_one_frame(dp, 29, **params)
+    # f29 = peak_find_one_frame(dp, 29, **params_more_liberal)
     # dp_masked = hs.load(DIR_HSPY+FILE_STRICT)
     # dp_masked_56 = dp_masked.inav[56]
     # dp_masked_56.plot(cmap='viridis_r',norm='log',title='',colorbar=False,
@@ -162,6 +175,8 @@ if __name__ == '__main__':
     # plt.tight_layout()
     # plt.show()
     #
-    peaks_liberal = get_peaks(dp, **params)
-    np.save(file=DIR_NPY+filename, arr=peaks_liberal, allow_pickle=True)
+    # peaks_liberal = get_peaks(dp, **params)
+    # np.save(file=DIR_NPY+filename, arr=peaks_liberal, allow_pickle=True)
+    # peaks_more_liberal = get_peaks(dp, **params)
+    # np.save(file=DIR_NPY+filename, arr=peaks_more_liberal, allow_pickle=True)
 
