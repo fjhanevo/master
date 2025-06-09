@@ -347,13 +347,20 @@ def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
     num_frames = data.axes_manager.navigation_shape[0]
 
     colors = cm.get_cmap(cmap)(np.linspace(0,1,num_frames))
-    
+    markers = [10, 29, 56]
+    clrs = ['red', 'brown', 'orange']
+    i = 0
     for idx in range(num_frames):
         loris_best = loris[idx, 0]
-        ax.scatter(loris_best, color=[colors[idx]])
+        if idx in markers:
+            ax.scatter(loris_best, color=clrs[i], label=f'Frame {markers[i]}', s=112)
+            i += 1
+        else:
+            ax.scatter(loris_best, color=[colors[idx]])
+
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=num_frames-1))
-    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', label='Frame index')
+    plt.colorbar(sm, ax=ax, orientation='vertical', label='Frame index')
     plt.tight_layout()
     plt.show()
 
@@ -378,5 +385,16 @@ def plot_ipf_misorientations(data, phase, cmap):
 
     
 
-
-
+def test_plot_ipf(data, phase, orientation, cmap):
+    
+    key_z = IPFColorKeyTSL(phase.point_group, Vector3d.zvector())
+    best_indices = [(data.inav[idx].data[:,0]).astype('int16') for idx in range(len(data.data))]
+    orientations = orientation[best_indices]
+    
+    correlations = [data.inav[idx].data[:,1] for idx in range(len(data.data))]
+    # oris = data.to_single_phase_orientations()
+    # correlations=key_z.orientation2color(oris)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group, direction=Vector3d.zvector())
+    ax.scatter(orientations, c=correlations, cmap=cmap,s=2)
+    plt.show()
