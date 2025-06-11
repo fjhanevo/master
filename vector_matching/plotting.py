@@ -2,6 +2,7 @@ import hyperspy.api as hs
 from orix.plot import IPFColorKeyTSL
 from orix.vector import Vector3d
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import numpy as np
 
 params = {
@@ -260,8 +261,6 @@ def plot_compare_misorientation_scatter(datasets:list, labels:tuple, colors:tupl
     plt.xlabel('Tilt Step', fontsize=26)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
-    # if lim:
-    #     plt.ylim(0, 10)
     plt.legend(fontsize=18, loc=legend_loc)
     plt.tight_layout()
     plt.show()
@@ -276,7 +275,7 @@ def plot_misorientation_violin(data):
     loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
     num_frames = loris_ang.shape[0] 
 
-    # calculate normalised misorientations fore ach frame
+    # calculate normalised misorientations for each frame
     violin_data = []
     means = []
     for i in range(num_frames):
@@ -292,17 +291,18 @@ def plot_misorientation_violin(data):
     
 
     plt.figure(figsize=(10, 6))
-    parts = plt.violinplot(violin_data, showmeans=False, showextrema=False, widths=0.9)
+    positions = np.arange(num_frames)
+    parts = plt.violinplot(violin_data, positions=positions ,showmeans=False, showextrema=False, widths=0.9)
     for pc in parts['bodies']:
         pc.set_facecolor('#1f77b4')
         pc.set_alpha(0.6)
 
     # extra overlay to make outliers more visible
-    for i, data in enumerate(violin_data, start=1):
+    for i, data in enumerate(violin_data):
         plt.scatter([i]*len(data), data, color='k', s=5, alpha=0.3)
     
     # scatter plot overlay
-    plt.scatter(range(1, num_frames + 1), means, color='red', label='Mean Normalised Misorientation', s=20)
+    plt.scatter(range(num_frames), means, color='red', label='Mean Normalised Misorientation', s=20)
     plt.axhline(y=1, color='black', label=r'1$\degree$', linestyle='dashed')
     plt.ylabel(r'Normalised Misorientation [$\degree$/$\Delta$step]',fontsize='26')
     plt.xlabel('Tilt Step',fontsize='26')
@@ -339,7 +339,6 @@ def plot_crystal_map(results,phase):
 
 
 def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
-    from matplotlib import cm
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
 
@@ -347,20 +346,35 @@ def plot_ipf_all_best_orientations(data, phase , cmap:str) -> None:
     num_frames = data.axes_manager.navigation_shape[0]
 
     colors = cm.get_cmap(cmap)(np.linspace(0,1,num_frames))
-    markers = [10, 29, 56]
-    clrs = ['red', 'brown', 'orange']
-    i = 0
+    # markers = [10, 29, 56]
+    # clrs = ['red', 'brown', 'orange']
+    # i = 0
     for idx in range(num_frames):
         loris_best = loris[idx, 0]
-        if idx in markers:
-            ax.scatter(loris_best, color=clrs[i], label=f'Frame {markers[i]}', s=112)
-            i += 1
-        else:
-            ax.scatter(loris_best, color=[colors[idx]])
+        # if idx in markers:
+            # ax.scatter(loris_best, color=clrs[i], label=f'Frame {markers[i]}', s=112)
+            # i += 1
+        # else:
+        ax.scatter(loris_best, color=[colors[idx]])
 
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=num_frames-1))
     plt.colorbar(sm, ax=ax, orientation='vertical', label='Frame index')
+    plt.tight_layout()
+    plt.show()
+
+def plot_ipf_all_best_orientations_subset(data, phase, frame_range:list, colors:list):
+
+    assert len(frame_range) == len(colors)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='ipf', symmetry=phase.point_group)
+
+    loris = data.to_single_phase_orientations()
+        
+    for i, idx in enumerate(frame_range):
+        loris_best = loris[idx, 0]
+        ax.scatter(loris_best, color=colors[i], s=112, label=f'Frame {idx+1}')
+    ax.legend()
     plt.tight_layout()
     plt.show()
 
