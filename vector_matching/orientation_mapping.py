@@ -1,3 +1,4 @@
+from sys import maxsize
 import hyperspy.api as hs
 import pyxem as pxm
 import numpy as np
@@ -5,12 +6,12 @@ import simulation as sim
 import plotting as plot
 import matplotlib.pyplot as plt
 import vector_match as vm
-import sphere_matching as sm
+from vm_utils import fast_polar
 from time import time
 
 def to_orientation_map(data, simulation):
     """
-    Converts numpy array into OrientaionMap and adds metdata.
+    Converts numpy array into OrientationMap and adds metdata.
     """
     data = pxm.signals.indexation_results.OrientationMap(data)
     # Add metadata
@@ -67,17 +68,22 @@ def compare_orientations(tm_orientation:np.ndarray, vm_orientation:np.ndarray) -
 
 def check_overlay_plot(exp, frame, simulation, phase, orientation, method):
     # Match one frame
-    sim_data = np.load(DIR_NPY+'LF_r_theta_sim.npy', allow_pickle=True)
+    exp = fast_polar(exp)
+    if method=="score_intensity":
+        sim_data = np.load(DIR_NPY+'sim_r_theta_intensity.npy', allow_pickle=True)
+        # exp = fast_polar(exp[:,:2])
+    else:
+        sim_data = np.load(DIR_NPY+'LF_r_theta_sim.npy', allow_pickle=True)
+        # exp = fast_polar(exp)
     t1 = time()
     sim_trimmed = sim_data[:1200]   # did this to decrease comp time, as I know the answer
     n_array = vm.vector_match(
         [exp[frame]], 
-        sim_trimmed,
+        sim_data,
         step_size=0.5, 
         reciprocal_radius=1.35, 
-        n_best=len(sim_trimmed), 
+        n_best=len(sim_data), 
         method=method,
-        ang_thresh_rad=0.05
     )
 
     t2 = time()
@@ -130,6 +136,84 @@ def get_misorientation_statistics(data):
 
     return stats
 
+def get_normalised_misorientation_statistics(data):
+    loris = data.to_single_phase_orientations()
+    loris_best = loris[:, 0]
+    loris_ang = loris_best.angle_with_outer(loris_best, degrees=True)
+    num_frames = loris_ang.shape[0]
+
+    all_normalised = []
+    stats = []
+
+    for i in range(num_frames):
+        norm_mis = []
+        for j in range(num_frames):
+            if i != j:
+                mis = loris_ang[i, j]
+                delta = np.abs(i-j)
+                norm_mis.append(mis / delta)
+        norm_mis = np.array(norm_mis)
+
+        stats.append({
+            "mean": np.mean(norm_mis),
+            "std": np.std(norm_mis),
+            "min": np.min(norm_mis),
+            "max": np.max(norm_mis),
+            "median": np.median(norm_mis),
+        })
+
+        all_normalised.extend(norm_mis)
+
+    all_normalised = np.array(all_normalised)
+    normalised_stats = {
+        "norm_mean" : np.mean(all_normalised),
+        "norm_std" : np.std(all_normalised),
+        "norm_min" : np.min(all_normalised),
+        "norm_max" : np.max(all_normalised),
+        "norm_median" : np.median(all_normalised),
+    }
+
+    return normalised_stats
+
+
+def get_algorithm_accuracy_statistics(data):
+    data = data.data if hasattr(data, "data") else data
+    # sim_data = np.load(DIR_NPY+sim_file, allow_pickle=True) 
+    best_scores = data[:, 0, 1]
+
+    stats = {
+        "mean_score" : np.mean(best_scores),
+        "min_score" : np.min(best_scores),
+        "max_score" : np.max(best_scores),
+        "std_score" : np.std(best_scores),
+        "num_matched" : np.sum(best_scores==0.0),
+        "percent_matched" : 100.0 * np.sum(best_scores==0.0) / best_scores.size,
+    }
+
+    return stats
+
+def print_n_scores(data, frame, n):
+    for i in range(n):
+        print(data.data[frame][i][1])
+     
+def get_score_uniqueness(data, frame, n, threshold: float = 1e-4):
+    scores = data.data if hasattr(data, "data") else data
+    top_scores = [scores[frame][i][1] for i in range(n)]
+    top_scores = np.array(top_scores)
+
+    best_score = top_scores[0]
+    max_score =top_scores[-1]
+
+    close_count = np.sum(np.abs(top_scores - best_score) < threshold)
+
+    stats = {
+        'std': np.std(top_scores),
+        'range_ratio': np.abs(max_score - best_score) / best_score if best_score > 0 else 0.0,
+        'percent_close_to_best': 100 * close_count / n
+    }
+
+    return stats
+
 
 if __name__ == '__main__':
     DIR_NPY = 'npy_files/'
@@ -139,7 +223,8 @@ if __name__ == '__main__':
     FILE_KD = '220525_vector_match_sum_score_weighted_step05deg_distbound005.npy'
     FILE_ANG = '260525_vector_match_ang_score_step05deg_ang_thresh005.npy'
     FILE_SUM = '260525_vector_match_sum_score_step05deg.npy'
-    FILE_INTENSITY = '270525_vector_match_score_intensity_step05deg_dist005.npy'
+    FILE_INTENSITY = '030625_vector_match_score_intensity_step05deg_dist005.npy'
+    FILE_ANG_ACCURACY = '280525_VM_ang_score_algorithm_accuracy.npy'
 
     hs.set_log_level('WARNING')
     s = hs.load(DIR_HSPY+HSPY)
@@ -152,43 +237,78 @@ if __name__ == '__main__':
     simulation = sim.compute_simulations(simgen, phase, grid, reciprocal_radius=1.35,
                                       max_excitation_error=0.05)
     #
-    # sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
+    sim_results = s_pol.get_orientation(simulation,n_best=grid.size,frac_keep=1.)  # Creates an OrientationMap
 
     
-    frame = 56
+    frame =56 
 
     i, j = frame, frame+1
 
 
     ### Check overlay plot ###
-    experimental = np.load(DIR_NPY+'peaks_all_LoG.npy', allow_pickle=True)
+    """POLAR TRANSFORMERING GJØRES I check_overlay_plot!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111"""
+    # experimental = np.load(DIR_NPY+'peaks_all_LoG.npy', allow_pickle=True)
+    # exp_intensity = np.load(DIR_NPY+'peaks_intensity_all_LoG.npy',allow_pickle=True)
     # FYYYYYYYYY FAAAAAAAAAAAAEEEEEEEEEEEEENNNNNNNNNNNNNNN 
-    experimental = sm.fast_polar(experimental)
-    method = "sum_score_weighted"
-    check_overlay_plot(experimental, frame, simulation, phase, orientation, method)
+    # experimental_peaks_bad = np.load(DIR_NPY+'310525_liberal_peaks_for_discussion_LoG.npy', allow_pickle=True)
+    # experimental_peaks_worse = np.load(DIR_NPY+'030625_more_liberal_peaks_for_discussion_LoG.npy', allow_pickle=True)
+    # method = "score_ang"
+    # check_overlay_plot(experimental, frame, simulation, phase, orientation, method)
+    # method = "score_intensity"
+    # check_overlay_plot(exp_intensity, frame, simulation, phase, orientation, method)
+    # check_overlay_plot(experimental_peaks_bad, frame, simulation, phase, orientation, method)
+    # check_overlay_plot(experimental_peaks_bad, 29, simulation, phase, orientation, method)
+    # check_overlay_plot(experimental_peaks_worse, 29, simulation, phase, orientation, method)
     
     ### EXPERIMENTAL ###
-    # exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
-    # exp_intensity = to_orientation_map(exp_intensity,simulation)
-    # exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
-    # exp_weighted = to_orientation_map(exp_weighted, simulation)
-    # exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
-    # exp_sum = to_orientation_map(exp_sum, simulation)
-    # exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
-    # exp_ang = to_orientation_map(exp_ang, simulation)
+    exp_intensity = np.load(DIR_NPY+FILE_INTENSITY, allow_pickle=True)
+    exp_intensity = to_orientation_map(exp_intensity,simulation)
+    exp_weighted = np.load(DIR_NPY+FILE_KD, allow_pickle=True)
+    exp_weighted = to_orientation_map(exp_weighted, simulation)
+    exp_sum = np.load(DIR_NPY+FILE_SUM, allow_pickle=True)
+    exp_sum = to_orientation_map(exp_sum, simulation)
+    exp_ang = np.load(DIR_NPY+FILE_ANG, allow_pickle=True)
+    exp_ang = to_orientation_map(exp_ang, simulation)
 
-    # exp_results = exp_intensity
+    n = 20
+    # print_n_scores(exp_weighted, 56, n)
+    print(get_score_uniqueness(sim_results, 58, n))
+    print(get_score_uniqueness(exp_weighted, 58, n))
+    # print(get_score_uniqueness(sim_results, 56, n))
+    # print("Score A:")
+    # print(get_normalised_misorientation_statistics(exp_sum))
+    # print("Score B:")
+    # print(get_normalised_misorientation_statistics(exp_weighted))
+    # print("Score C:")
+    # print(get_normalised_misorientation_statistics(exp_ang))
+    # print("Score D:")
+    # print(get_normalised_misorientation_statistics(exp_intensity))
 
+
+    # frames = [0,1,2,3,4,5]
+    # colors=['black', 'blue', 'red', 'green', 'yellow', 'brown']
+    # plot.plot_ipf_all_best_orientations_subset(exp_ang, phase, frames, colors)
+
+
+    # exp_ang_accuracy = np.load(DIR_NPY+FILE_ANG_ACCURACY, allow_pickle=True)
+    # exp_ang_accuracy_reshaped = np.reshape(exp_ang_accuracy, (14,299))
+    # exp_ang_accuracy = to_orientation_map(exp_ang_accuracy, simulation)
+    # plot.test_plot_ipf(exp_ang_accuracy, phase, orientation,'magma')
+    # plot.plot_ipf_all_best_orientations(exp_ang_accuracy, phase, cmap='viridis_r')
+    # print(get_algorithm_accuracy_statistics(exp_ang_accuracy))
 
     ### Misorientation comparison ###
     # lbls = ('Score A', 'Score B', 'Score C', 'Score D')
     # clrs = ('Blue', 'Orange', 'Red', 'Green')
-    # symbols = ('o', '^', 's', 'X')
+    # symbols = ('o', 's', 'X', '^')
     # datasets = [exp_sum, exp_weighted, exp_ang, exp_intensity]
-    # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols)
-    # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols,lim=True)
+    # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols,legend_loc='upper left')
+    # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols,lim=True,legend_loc='upper left')
+    # plot.plot_misorientation_violin(exp_sum)
     # plot.plot_misorientation_violin(exp_weighted)
-    
+    # plot.plot_misorientation_violin(exp_ang)
+    # plot.plot_misorientation_violin(exp_intensity)
+    # plot.plot_misorientation_violin(sim_results)
 
     ### Comparing score C to TM ###
     # first we get TM results
@@ -201,10 +321,9 @@ if __name__ == '__main__':
     # datasets = [exp_ang, sim_results]
     # lbls = ('Score C', 'TM')
     # clrs = ('Red', 'blue')
-    # symbols = ('s', 'o')
+    # symbols = ('X', 'o')
     # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols, lim=False, legend_loc='best' )
     # plot.plot_compare_misorientation_scatter(datasets, lbls, clrs, symbols, lim=True, legend_loc='upper left')
-
     # print("TM misorientation stats:")
     # print(get_misorientation_statistics(sim_results))
 
@@ -229,6 +348,7 @@ if __name__ == '__main__':
     # plot.plot_ipf(exp_intensity, frame, phase, orientation, cmap='viridis_r')
     # plot.plot_with_markers(exp_sum, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_with_markers(exp_weighted, DIR_HSPY+ORG_HSPY, i, j)
+    # i, j = 40, 50
     # plot.plot_with_markers(exp_ang, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_with_markers(exp_intensity, DIR_HSPY+ORG_HSPY, i, j)
     # plot.plot_ipf_all_best_orientations(exp_sum, phase, cmap='viridis_r')
