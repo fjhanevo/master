@@ -7,12 +7,12 @@ import numpy as np
 File to create a simulation of FCC Al templates.
 """
 
-def unit_cell(a=4.0495):
-    atoms = [Atom('Al', [0,0,0]), Atom('Al', [0.5,0.5,0]),
-             Atom('Al', [0.5, 0, 0.5]), Atom('Al', [0,0.5,0.5])]
+def unit_cell(a=4.0495,name='Al'):
+    atoms = [Atom(name, [0,0,0]), Atom(name, [0.5,0.5,0]),
+             Atom(name, [0.5, 0, 0.5]), Atom(name, [0,0.5,0.5])]
 
     lattice = Lattice(a,a,a,90,90,90)
-    phase = orix.crystal_map.Phase(name='Al', space_group=225, structure=Structure(atoms, lattice))
+    phase = orix.crystal_map.Phase(name=name, space_group=225, structure=Structure(atoms, lattice))
     return phase
 
 def gen_orientation_grid(phase, angular_resolution=0.5):
