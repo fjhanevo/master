@@ -6,12 +6,12 @@ import matplotlib.pyplot as plt
 import simulation as sim
 from orientation_mapping import to_orientation_map
 
-def get_tm_accuracy_simulation(simulation, calibration, shape):
+def get_tm_accuracy_simulation(simulation, shape, calibration):
     sim_dps= []
 
     for i in range(0, simulation.current_size):
         simulation.rotation_index = i
-        sim_dps += [(simulation.get_diffraction_pattern(shape=shape, sigma=1, calibration=calibration))]
+        sim_dps += [(simulation.get_diffraction_pattern(shape=shape[2:], sigma=1, calibration=calibration))]
     # reshape
     sim_dps = np.reshape(sim_dps, shape)
     sim_dps = pxm.signals.ElectronDiffraction2D(sim_dps)
@@ -48,6 +48,7 @@ if __name__ == '__main__':
     calibration = 0.0107
     reciprocal_radius = 1.35
     new_shape = (14, 299, 4186, 4)  # reshape for cool crystal map plot
+    sim_shape = (14, 299, 256, 256)
 
 
     ### SIMULATED ###
@@ -57,9 +58,9 @@ if __name__ == '__main__':
     simulation = sim.compute_simulations(simgen, phase, grid, reciprocal_radius=reciprocal_radius,
                                       max_excitation_error=0.05)
 
-    sim_dps= get_tm_accuracy_simulation(simulation, new_shape[2:],calibration)
-    s_pol = sim_dps.get_azimuthal_integral2d(npt=112, radial_range=(0., reciprocal_radius))
-    sim_results = s_pol.get_orientation(simulation, n_best=grid.size, frac_keep=1.0)
+    # sim_dps= get_tm_accuracy_simulation(simulation, sim_shape,calibration)
+    # s_pol = sim_dps.get_azimuthal_integral2d(npt=112, radial_range=(0., reciprocal_radius))
+    # sim_results = s_pol.get_orientation(simulation, n_best=grid.size, frac_keep=1.0)
 
     ### Experimental ###
     exp_ang = np.load(DIR_NPY+FILE_ANG_ACCURACY, allow_pickle=True)
@@ -67,5 +68,13 @@ if __name__ == '__main__':
     exp_ang = to_orientation_map(exp_ang, simulation)
 
     ### Plotting ###
+    # plot_ipf_w_crystal_map(exp_ang, phase)
 
-    plot_ipf_w_crystal_map(exp_ang, phase)
+
+    ### Stats ###
+    xmap = exp_ang.to_crystal_map()
+    oris = xmap.orientations
+    oris_unique, oris_u_count = np.unique(oris.data, return_counts=True, axis=0)
+    print("# Matched orientations: "+str(len(oris_unique)) + '\nAverage count of each orientation: '+
+        str(np.average(oris_u_count)))
+
