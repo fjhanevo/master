@@ -276,7 +276,6 @@ def _get_score_intensity(
         sim_intensities_unmatched = sim_intensities[unmatched_sim_mask]
         unmatched_point_penalty_sim = sim_intensities_unmatched 
         point_scores_sim[unmatched_sim_mask] = unmatched_point_penalty_sim
-        print(sim_intensities_unmatched)
 
     sum_sim_score = np.sum(point_scores_sim)
 
@@ -378,7 +377,6 @@ def _precompute_sim_data(
                 'kdtree': None,
                 'coordinates': np.empty((0,3), dtype=dtype),
                 'intensities': None,
-                'is_valid': False
             }
 
             # print(rot_frame.shape[1])
@@ -517,6 +515,8 @@ def vector_match(
     if method == "score_ang" and fast:
         raise ValueError(f"Method: {method} does not support fast == {fast}, set fast = False")
 
+    # convert experimental from 2D cartesian to 2D polar
+    exp_pol = vm_utils.fast_polar(experimental)
 
     # not ideal but i don't care
     kwargs = {
@@ -525,8 +525,6 @@ def vector_match(
     }
     if dimension == 3 and method == "score_intensity":
         # 2D polar with intensity
-        # convert experimental from 2D cartesian to 2D polar
-        exp_pol = vm_utils.fast_polar(experimental[:,:2])
         exp3d_all = [vm_utils.vector_to_3D(exp_vec[:,:2], reciprocal_radius,dtype) for exp_vec in exp_pol]
         exp_intensities = [frame[:, 2] for frame in experimental]
         # calculate max intensities for normalising
@@ -537,8 +535,6 @@ def vector_match(
 
     elif dimension == 2:
         # 2D polar only
-        # convert experimental from 2D cartesian to 2D polar
-        exp_pol = vm_utils.fast_polar(experimental)
         exp3d_all = [vm_utils.vector_to_3D(exp_vec, reciprocal_radius,dtype) for exp_vec in exp_pol]
         exp_intensities = [np.zeros(len(frame)) for frame in experimental] # set to zero as we're not dealing with it
     else:
